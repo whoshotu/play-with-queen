@@ -19,6 +19,11 @@ export function ChatMessage({ message, isOwnMessage }: {
         );
     }
 
+    const isEmojiOnly = React.useMemo(() => {
+        const emojiRegex = /^(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff]|[\s\u200d])+$/;
+        return emojiRegex.test(message.content);
+    }, [message.content]);
+
     return (
         <div
             className={cn(
@@ -34,10 +39,11 @@ export function ChatMessage({ message, isOwnMessage }: {
             </div>
             <div
                 className={cn(
-                    "max-w-[80%] rounded-2xl px-3 py-2 text-sm",
+                    "max-w-[80%] rounded-2xl px-3 py-2 text-sm transition-all",
                     isOwnMessage
                         ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-foreground"
+                        : "bg-muted text-foreground",
+                    isEmojiOnly && "bg-transparent px-0 py-0 text-3xl text-foreground"
                 )}
             >
                 {message.content}
