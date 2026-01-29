@@ -5,20 +5,17 @@ import { Badge } from "@/components/ui/badge";
 import { Users, Video, Mic, MicOff, VideoOff, Hand, Crown, Shield } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { useCameraStream } from "@/components/call/call-panel";
-import { WebRTCManager } from "@/lib/webrtc";
-import { canManageCall, canUseCameraByDefault, canSpeakByDefault, isAdminOrMod } from "@/lib/permissions";
+import { canUseCameraByDefault, canSpeakByDefault, isAdminOrMod } from "@/lib/permissions";
 
 export function StagePanel() {
   const user = useAppStore((s) => s.user);
-  const { participants, chatMessages } = useAppStore((s) => s.call);
+  const { participants } = useAppStore((s) => s.call);
   const addSystemMessage = useAppStore((s) => s.addSystemMessage);
-  const addParticipant = useAppStore((s) => s.addParticipant);
-  const removeParticipant = useAppStore((s) => s.removeParticipant);
   const updateParticipant = useAppStore((s) => s.updateParticipant);
   const webrtcConnected = useAppStore((s) => s.webrtcConnected);
   const localStream = useAppStore((s) => s.localStream);
   
-  const { request, stop, status, error } = useCameraStream();
+  const { request, stop, error } = useCameraStream();
   const [isJoined, setIsJoined] = React.useState(false);
   const [isRequestingPermission, setIsRequestingPermission] = React.useState(false);
   const videoRef = React.useRef<HTMLVideoElement>(null);
@@ -44,7 +41,7 @@ export function StagePanel() {
     if (canUseCamera) {
       try {
         await request();
-      } catch (err) {
+      } catch {
         console.log("Camera not available, joining without video");
       }
     }

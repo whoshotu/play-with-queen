@@ -2,11 +2,10 @@ import * as React from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 
-import { Video, VideoOff, UserPlus, Monitor, MonitorOff } from "lucide-react";
+import { Video, VideoOff, Monitor, MonitorOff } from "lucide-react";
 
 import { useAppStore } from "@/store/useAppStore";
 import { IndividualDicePreview } from "@/components/dice/individual-dice-preview";
@@ -22,19 +21,20 @@ function useLocalCamera() {
   const [error, setError] = React.useState<string | null>(null);
   const streamRef = React.useRef<MediaStream | null>(null);
   const setLocalStream = useAppStore((s) => s.setLocalStream);
+  const localStream = useAppStore((s) => s.localStream);
 
   React.useEffect(() => {
-    if (videoRef.current && streamRef.current) {
-      videoRef.current.srcObject = streamRef.current;
+    if (videoRef.current && localStream) {
+      videoRef.current.srcObject = localStream;
     }
-  }, [streamRef.current]);
+  }, [localStream]);
 
   const stop = React.useCallback(() => {
     if (videoRef.current) videoRef.current.srcObject = null;
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
-    setLocalStream(null);
     setStatus("idle");
+    setLocalStream(null);
   }, [setLocalStream]);
 
   const request = React.useCallback(async (deviceId?: string) => {
@@ -132,21 +132,11 @@ export function CallPanel(props: { title?: string; description?: string }) {
   const screenSharing = useAppStore((s) => s.screenSharing);
   const setScreenSharing = useAppStore((s) => s.setScreenSharing);
 
-  const [participantName, setParticipantName] = React.useState("");
   const addParticipant = useAppStore((s) => s.addParticipant);
-  const removeParticipant = useAppStore((s) => s.removeParticipant);
   const updateParticipant = useAppStore((s) => s.updateParticipant);
 
   const { videoRef, status, error, request, stop } = useLocalCamera();
   const [rolling, setRolling] = React.useState(false);
-
-  // Ensure local video shows stream when call is joined
-  const localStream = useAppStore((s) => s.localStream);
-  React.useEffect(() => {
-    if (videoRef.current && localStream) {
-      videoRef.current.srcObject = localStream;
-    }
-  }, [localStream]);
 
   const [videoDevices, setVideoDevices] = React.useState<MediaDeviceInfo[]>([]);
   React.useEffect(() => {
@@ -204,7 +194,7 @@ export function CallPanel(props: { title?: string; description?: string }) {
       } else if (error.message?.includes('NotAllowedError')) {
         addSystemMessage("Camera access was denied. Please click the camera icon in your browser's address bar to allow access.");
       } else {
-        addSystemMessage(`Failed to join call: ${error.message || 'Unknown error'}`);
+        console.error("Failed to restart camera");
       }
       
       setWebRTCManager(null);
@@ -248,17 +238,15 @@ export function CallPanel(props: { title?: string; description?: string }) {
 
         webrtcManager.setLocalStream(screenStream);
 
-        // Update local preview
-        if (videoRef.current) {
-          videoRef.current.srcObject = screenStream;
-        }
+        // Update local preview - the effect will handle this
+        // No need to manually set srcObject, the effect watching localStream will handle it
 
         setScreenSharing(true);
       } catch (err) {
         console.error("Failed to share screen:", err);
       }
     }
-  }, [webrtcManager, screenSharing, selectedCameraId, request, setScreenSharing, videoRef]);
+  }, [webrtcManager, screenSharing, selectedCameraId, request, setScreenSharing]);
 
   return (
     <Card>
@@ -405,8 +393,8 @@ export function CallPanel(props: { title?: string; description?: string }) {
             )}
 
             {call.joined && call.showDiceOverlay ? (
-              <div className="absolute inset-x-0 bottom-0 p-3">
-                <div className="rounded-lg bg-black/60 p-3">
+              <div className="absolute inset-x-0 bottom-0 p-3 z-40">
+                <div className="rounded-lg bg-black/80 backdrop-blur-sm p-3">
                   <div className="mb-2 flex items-center justify-between gap-3">
                     <div className="text-xs font-medium tracking-wide text-white/80">Dice overlay</div>
                     <Button
@@ -439,80 +427,55 @@ export function CallPanel(props: { title?: string; description?: string }) {
 
           {/* Draggable participant videos */}
           <div className="relative min-h-[300px]">
-            {call.participants.map((participant) => (
-              <DraggableVideoBox
-                key={participant.id}
-                participant={participant}
-                userId={participant.id}
-                onPositionChange={(x, y) => updateParticipant(participant.id, { position: { x, y } })}
-                onSizeChange={(width, height) => updateParticipant(participant.id, { size: { width, height } })}
-                onCameraToggle={(enabled) => updateParticipant(participant.id, { cameraEnabled: enabled })}
-                isRemote={participant.id !== user?.id}
-              />
-            ))}
-            {call.participants.length === 0 && (
+            {call.participants
+              .filter((participant) => participant.id !== user?.id)
+              .map((participant) => {
+                return (
+                  <DraggableVideoBox
+                    key={participant.id}
+                    participant={participant}
+                    userId={participant.id}
+                    onPositionChange={(x, y) => updateParticipant(participant.id, { position: { x, y } })}
+                    onSizeChange={(width, height) => updateParticipant(participant.id, { size: { width, height } })}
+                    onCameraToggle={(enabled) => updateParticipant(participant.id, { cameraEnabled: enabled })}
+                    isRemote={true}
+                  />
+                );
+              })}
+            {call.participants.filter((p) => p.id !== user?.id).length === 0 && (
               <div className="text-muted-foreground grid h-[300px] place-items-center text-center text-sm">
-                No participants yet. Add participants below.
+                No remote participants yet. Share the room with others to start collaborating.
               </div>
             )}
           </div>
         </div>
 
-        {/* Add participant */}
-        <div className="rounded-xl border bg-background p-3">
-          <div className="mb-2 text-sm font-medium">Manage Participants</div>
-          <div className="grid gap-3">
+        {/* Participant info */}
+        {call.participants.length > 0 && (
+          <div className="rounded-xl border bg-background p-3">
             <div className="grid gap-2">
-              <Label>Add a participant</Label>
-              <div className="flex gap-2">
-                <Input
-                  value={participantName}
-                  onChange={(e) => setParticipantName(e.target.value)}
-                  placeholder="Enter name..."
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      const safe = participantName.trim();
-                      if (!safe) return;
-                      addParticipant(safe);
-                      setParticipantName("");
-                    }
-                  }}
-                />
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    const safe = participantName.trim();
-                    if (!safe) return;
-                    addParticipant(safe);
-                    setParticipantName("");
-                  }}
-                >
-                  <UserPlus className="h-4 w-4" />
-                  Add
-                </Button>
-              </div>
-            </div>
-
-            {call.participants.length > 0 && (
-              <div className="grid gap-2">
-                <Label>Active Participants ({call.participants.length})</Label>
-                {call.participants.map((p) => (
-                  <div key={p.id} className="flex items-center justify-between gap-3 rounded-lg border p-2">
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-medium">{p.name}</div>
-                      <div className="text-muted-foreground text-xs">
-                        Camera: {p.cameraEnabled ? "On" : "Off"}
-                      </div>
-                    </div>
-                    <Button size="sm" variant="outline" onClick={() => removeParticipant(p.id)}>
-                      Remove
-                    </Button>
+              <Label>Active Participants ({call.participants.length + 1})</Label>
+              <div className="flex items-center justify-between gap-3 rounded-lg border p-2">
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-medium">{user?.name ?? "You"} (You)</div>
+                  <div className="text-muted-foreground text-xs">
+                    Camera: {status === "granted" ? "On" : "Off"}
                   </div>
-                ))}
+                </div>
               </div>
-            )}
+              {call.participants.filter((p) => p.id !== user?.id).map((p) => (
+                <div key={p.id} className="flex items-center justify-between gap-3 rounded-lg border p-2">
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium">{p.name}</div>
+                    <div className="text-muted-foreground text-xs">
+                      Remote participant
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </CardContent>
     </Card>
   );
