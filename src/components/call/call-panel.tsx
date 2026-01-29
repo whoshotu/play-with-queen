@@ -21,19 +21,21 @@ function useLocalCamera() {
   const [status, setStatus] = React.useState<CameraStatus>("idle");
   const [error, setError] = React.useState<string | null>(null);
   const streamRef = React.useRef<MediaStream | null>(null);
+  const setLocalStream = useAppStore((s) => s.setLocalStream);
 
   React.useEffect(() => {
-    if (status === "granted" && videoRef.current && streamRef.current) {
+    if (videoRef.current && streamRef.current) {
       videoRef.current.srcObject = streamRef.current;
     }
-  }, [status]);
+  }, [streamRef.current]);
 
   const stop = React.useCallback(() => {
     if (videoRef.current) videoRef.current.srcObject = null;
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
+    setLocalStream(null);
     setStatus("idle");
-  }, []);
+  }, [setLocalStream]);
 
   const request = React.useCallback(async (deviceId?: string) => {
     setError(null);
@@ -51,6 +53,7 @@ function useLocalCamera() {
 
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       streamRef.current = stream;
+      setLocalStream(stream);
       setStatus("granted");
       return stream;
     } catch (err: unknown) {
@@ -115,6 +118,14 @@ export function CallPanel(props: { title?: string; description?: string }) {
 
   const { videoRef, status, error, request, stop } = useLocalCamera();
   const [rolling, setRolling] = React.useState(false);
+
+  // Ensure local video shows stream when call is joined
+  const localStream = useAppStore((s) => s.localStream);
+  React.useEffect(() => {
+    if (videoRef.current && localStream) {
+      videoRef.current.srcObject = localStream;
+    }
+  }, [localStream]);
 
   const [videoDevices, setVideoDevices] = React.useState<MediaDeviceInfo[]>([]);
   React.useEffect(() => {
