@@ -22,11 +22,10 @@ export function LoginGate() {
       admin: { name: name.trim(), role: "admin" as const },
     };
 
-    // Simple access codes (in production, use proper authentication)
     const validCodes = {
-      creator: "creator123",
-      mod: "mod123", 
-      admin: "admin123"
+      creator: "pnpslut",
+      mod: "shardtard",
+      admin: "spunfun"
     };
 
     if (role !== "guest" && accessCode !== validCodes[role]) {
@@ -39,6 +38,20 @@ export function LoginGate() {
       ...roleUsers[role]
     });
   }, [name, accessCode, setUser]);
+
+  React.useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.hash.split('?')[1]);
+    const roleParam = urlParams.get('role');
+    if (roleParam && ['admin', 'mod', 'creator'].includes(roleParam)) {
+      const role = roleParam as "admin" | "mod" | "creator";
+      const validCodes = {
+        creator: "pnpslut",
+        mod: "shardtard",
+        admin: "spunfun"
+      };
+      setAccessCode(validCodes[role]);
+    }
+  }, []);
 
   if (user && user.role !== "guest") {
     return (
@@ -161,10 +174,10 @@ export function LoginGate() {
         </div>
 
         <div className="text-xs text-muted-foreground border-t pt-3">
-          <p className="font-medium mb-1">Demo Access Codes:</p>
-          <p>Creator: <code>creator123</code></p>
-          <p>Moderator: <code>mod123</code></p>
-          <p>Admin: <code>admin123</code></p>
+          <p className="font-medium mb-1">Access Codes:</p>
+          <p>Creator: <code>pnpslut</code></p>
+          <p>Moderator: <code>shardtard</code></p>
+          <p>Admin: <code>spunfun</code></p>
         </div>
       </CardContent>
     </Card>
