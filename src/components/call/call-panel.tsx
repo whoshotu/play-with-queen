@@ -11,6 +11,7 @@ import { Video, VideoOff, UserPlus, Monitor, MonitorOff } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { IndividualDicePreview } from "@/components/dice/individual-dice-preview";
 import { DraggableVideoBox } from "./draggable-video-box";
+import { EmojiReactions } from "./emoji-reactions";
 import { WebRTCManager } from "@/lib/webrtc";
 
 type CameraStatus = "idle" | "requesting" | "granted" | "denied";
@@ -52,19 +53,20 @@ function useLocalCamera() {
       streamRef.current = stream;
       setStatus("granted");
       return stream;
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Camera access failed:", err);
+      const error = err as Error;
       setStatus("denied");
 
       let msg = "Camera access error.";
-      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+      if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
         msg = "Permission denied. Check browser settings.";
-      } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+      } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
         msg = "No camera found on device.";
-      } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
+      } else if (error.name === "NotReadableError" || error.name === "TrackStartError") {
         msg = "Camera may be in use by another app.";
-      } else if (err.message) {
-        msg = `${err.message}`;
+      } else if (error.message) {
+        msg = `${error.message}`;
       }
 
       setError(msg);
@@ -101,6 +103,7 @@ export function CallPanel(props: { title?: string; description?: string }) {
   const setWebRTCConnected = useAppStore((s) => s.setWebRTCConnected);
   const addRemoteStream = useAppStore((s) => s.addRemoteStream);
   const removeRemoteStream = useAppStore((s) => s.removeRemoteStream);
+  const addChatMessage = useAppStore((s) => s.addChatMessage);
   const addSystemMessage = useAppStore((s) => s.addSystemMessage);
   const screenSharing = useAppStore((s) => s.screenSharing);
   const setScreenSharing = useAppStore((s) => s.setScreenSharing);
@@ -110,7 +113,7 @@ export function CallPanel(props: { title?: string; description?: string }) {
   const removeParticipant = useAppStore((s) => s.removeParticipant);
   const updateParticipant = useAppStore((s) => s.updateParticipant);
 
-  const { videoRef, status, error, request, stop, stream: localStream } = useLocalCamera();
+  const { videoRef, status, error, request, stop } = useLocalCamera();
   const [rolling, setRolling] = React.useState(false);
 
   const [videoDevices, setVideoDevices] = React.useState<MediaDeviceInfo[]>([]);
@@ -209,7 +212,7 @@ export function CallPanel(props: { title?: string; description?: string }) {
         console.error("Failed to share screen:", err);
       }
     }
-  }, [webrtcManager, screenSharing, selectedCameraId, request, setScreenSharing]);
+  }, [webrtcManager, screenSharing, selectedCameraId, request, setScreenSharing, videoRef]);
 
   return (
     <Card>
@@ -265,6 +268,22 @@ export function CallPanel(props: { title?: string; description?: string }) {
               </Button>
             )}
 
+            {call.joined && (
+              <div className="flex items-center gap-1 border-l pl-3">
+                {["❤️", "🔥", "😂", "😮", "👏"].map((emoji) => (
+                  <Button
+                    key={emoji}
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 text-lg hover:bg-muted"
+                    onClick={() => addChatMessage(emoji, "emoji")}
+                  >
+                    {emoji}
+                  </Button>
+                ))}
+              </div>
+            )}
+
             <div className="text-muted-foreground text-sm">
               You: <span className="font-medium text-foreground">{user?.name ?? "Guest"}</span>
             </div>
@@ -284,6 +303,7 @@ export function CallPanel(props: { title?: string; description?: string }) {
         <div className="relative min-h-[500px] rounded-xl border bg-muted/30 p-3">
           {/* Your camera (fixed position) */}
           <div className="relative mb-4 overflow-hidden rounded-lg border bg-black">
+            <EmojiReactions />
             {call.joined ? (
               status === "granted" ? (
                 <video ref={videoRef} autoPlay playsInline muted className="aspect-video w-full object-cover" />

@@ -1,4 +1,5 @@
 import { io, Socket } from 'socket.io-client';
+import { ChatMessage } from './types';
 
 // STUN servers for NAT traversal
 const ICE_SERVERS = [
@@ -29,6 +30,7 @@ export class WebRTCManager {
     private onUserJoined: ((userId: string, userName: string) => void) | null = null;
     private onUserLeft: ((userId: string) => void) | null = null;
     private onConnectionStateChange: ((state: string) => void) | null = null;
+    private onChatMessage: ((message: ChatMessage) => void) | null = null;
 
     constructor(config: WebRTCConfig) {
         this.config = config;
@@ -119,6 +121,19 @@ export class WebRTCManager {
         this.onConnectionStateChange = callback;
     }
 
+    onMessageReceived(callback: (message: ChatMessage) => void) {
+        this.onChatMessage = callback;
+    }
+
+    // Send a chat message or emoji reaction
+    sendMessage(message: ChatMessage) {
+        if (!this.socket) return;
+        this.socket.emit('chat-message', {
+            roomId: this.config.roomId,
+            message: message
+        });
+    }
+
     // Join room
     private joinRoom() {
         if (!this.socket) return;
@@ -135,7 +150,7 @@ export class WebRTCManager {
         if (!this.socket) return;
 
         // Existing participants in room
-        this.socket.on('existing-participants', (participants: any[]) => {
+        this.socket.on('existing-participants', (participants: { userId: string, userName: string, socketId: string }[]) => {
             console.log('[WebRTC] Existing participants:', participants);
             participants.forEach((participant) => {
                 this.createPeerConnection(participant.userId, participant.socketId, true);
@@ -143,14 +158,14 @@ export class WebRTCManager {
         });
 
         // New user joined
-        this.socket.on('user-joined', ({ userId, userName, socketId }: any) => {
+        this.socket.on('user-joined', ({ userId, userName, socketId }: { userId: string, userName: string, socketId: string }) => {
             console.log('[WebRTC] User joined:', userName);
             this.onUserJoined?.(userId, userName);
             this.createPeerConnection(userId, socketId, false);
         });
 
         // User left
-        this.socket.on('user-left', ({ userId }: any) => {
+        this.socket.on('user-left', ({ userId }: { userId: string }) => {
             console.log('[WebRTC] User left:', userId);
             this.closePeerConnection(userId);
             this.onUserLeft?.(userId);
@@ -158,21 +173,27 @@ export class WebRTCManager {
         });
 
         // Received offer
-        this.socket.on('offer', async ({ from, offer }: any) => {
+        this.socket.on('offer', async ({ from, offer }: { from: string, offer: RTCSessionDescriptionInit }) => {
             console.log('[WebRTC] Received offer from:', from);
             await this.handleOffer(from, offer);
         });
 
         // Received answer
-        this.socket.on('answer', async ({ from, answer }: any) => {
+        this.socket.on('answer', async ({ from, answer }: { from: string, answer: RTCSessionDescriptionInit }) => {
             console.log('[WebRTC] Received answer from:', from);
             await this.handleAnswer(from, answer);
         });
 
         // Received ICE candidate
-        this.socket.on('ice-candidate', async ({ from, candidate }: any) => {
+        this.socket.on('ice-candidate', async ({ from, candidate }: { from: string, candidate: RTCIceCandidateInit }) => {
             console.log('[WebRTC] Received ICE candidate from:', from);
             await this.handleIceCandidate(from, candidate);
+        });
+
+        // Received chat message
+        this.socket.on('chat-message', (message: ChatMessage) => {
+            console.log('[WebRTC] Received chat message from:', message.senderName);
+            this.onChatMessage?.(message);
         });
     }
 

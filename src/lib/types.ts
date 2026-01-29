@@ -50,7 +50,7 @@ export type ChatMessage = {
   senderName: string;
   content: string;
   timestamp: string; // ISO string
-  type: "user" | "system";
+  type: "user" | "system" | "emoji";
 };
 
 // Enhanced participant with video stream and position

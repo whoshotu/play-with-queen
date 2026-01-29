@@ -88,7 +88,7 @@ type AppState = {
   updateParticipant: (id: string, patch: Partial<Omit<Participant, "id">>) => void;
 
   // Chat actions
-  addChatMessage: (content: string) => void;
+  addChatMessage: (content: string, type?: "user" | "emoji", incomingMessage?: ChatMessage) => void;
   addSystemMessage: (content: string) => void;
   clearChat: () => void;
 
@@ -367,27 +367,32 @@ export const useAppStore = create<AppState>((set, get) => ({
     })),
 
   // Chat actions
-  addChatMessage: (content) =>
-    set((state) => {
-      const user = state.user;
-      if (!user) return {};
+  addChatMessage: (content, type = "user", incomingMessage) => {
+    const state = get();
+    const user = state.user;
+    if (!user && !incomingMessage) return;
 
-      const message: ChatMessage = {
-        id: uid("msg"),
-        senderId: user.name,
-        senderName: user.name,
-        content,
-        timestamp: new Date().toISOString(),
-        type: "user",
-      };
+    const message: ChatMessage = incomingMessage || {
+      id: uid("msg"),
+      senderId: user!.id,
+      senderName: user!.name,
+      content,
+      timestamp: new Date().toISOString(),
+      type,
+    };
 
-      return {
-        call: {
-          ...state.call,
-          chatMessages: [...state.call.chatMessages, message],
-        },
-      };
-    }),
+    // Broadcast if it's a local message
+    if (!incomingMessage && state.webrtcManager) {
+      state.webrtcManager.sendMessage(message);
+    }
+
+    set((state) => ({
+      call: {
+        ...state.call,
+        chatMessages: [...state.call.chatMessages, message],
+      },
+    }));
+  },
 
   addSystemMessage: (content) =>
     set((state) => {
@@ -425,7 +430,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   webrtcConnected: false,
   screenSharing: false,
 
-  setWebRTCManager: (manager) => set({ webrtcManager: manager }),
+  setWebRTCManager: (manager) => {
+    if (manager) {
+      manager.onMessageReceived((msg) => {
+        get().addChatMessage(msg.content, msg.type as "user" | "emoji", msg);
+      });
+    }
+    set({ webrtcManager: manager });
+  },
   setLocalStream: (stream) => set({ localStream: stream }),
   addRemoteStream: (userId, stream) =>
     set((state) => {

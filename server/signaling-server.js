@@ -91,6 +91,12 @@ io.on('connection', (socket) => {
         io.to(to).emit('ice-candidate', { from, candidate });
     });
 
+    // Relay chat messages and reactions
+    socket.on('chat-message', ({ roomId, message }) => {
+        console.log(`[${new Date().toISOString()}] Chat message in room ${roomId} from ${message.senderName}`);
+        socket.to(roomId).emit('chat-message', message);
+    });
+
     // Handle disconnect
     socket.on('disconnect', () => {
         console.log(`[${new Date().toISOString()}] Client disconnected: ${socket.id}`);
