@@ -1,0 +1,445 @@
+import { create } from "zustand";
+
+import type {
+  Announcement,
+  CallState,
+  ChatMessage,
+  DiceConfig,
+  IndividualDiceConfig,
+  MediaItem,
+  MenuItem,
+  Participant,
+  Role,
+  User,
+} from "@/lib/types";
+import { WebRTCManager } from "@/lib/webrtc";
+
+function uid(prefix: string) {
+  return `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`;
+}
+
+const defaultDiceConfig: DiceConfig = {
+  diceCount: 2,
+  diceColor: "#111827",
+  faceTextColor: "#ffffff",
+  faceLabels: ["1", "2", "3", "4", "5", "6"],
+};
+
+// Default individual dice (start with 2 dice)
+const createDefaultIndividualDice = (): IndividualDiceConfig[] => [
+  {
+    id: uid("die"),
+    diceColor: "#111827",
+    faceTextColor: "#ffffff",
+    faceLabels: ["1", "2", "3", "4", "5", "6"],
+  },
+  {
+    id: uid("die"),
+    diceColor: "#111827",
+    faceTextColor: "#ffffff",
+    faceLabels: ["1", "2", "3", "4", "5", "6"],
+  },
+];
+
+type AppState = {
+  user: User | null;
+  setUser: (user: User | null) => void;
+  setRole: (role: Role) => void;
+
+  menuItems: MenuItem[];
+  mediaItems: MediaItem[];
+  announcements: Announcement[];
+
+  addMenuItem: (item: Omit<MenuItem, "id">) => void;
+  updateMenuItem: (id: string, patch: Partial<Omit<MenuItem, "id">>) => void;
+  removeMenuItem: (id: string) => void;
+
+  addMediaItem: (item: Omit<MediaItem, "id">) => void;
+  updateMediaItem: (id: string, patch: Partial<Omit<MediaItem, "id">>) => void;
+  removeMediaItem: (id: string) => void;
+
+  addAnnouncement: (a: Omit<Announcement, "id" | "createdAtIso">) => void;
+  updateAnnouncement: (
+    id: string,
+    patch: Partial<Omit<Announcement, "id" | "createdAtIso">>
+  ) => void;
+  removeAnnouncement: (id: string) => void;
+
+  diceConfig: DiceConfig;
+  setDiceConfig: (patch: Partial<DiceConfig>) => void;
+  setDiceFaceLabel: (index: 0 | 1 | 2 | 3 | 4 | 5, value: string) => void;
+
+  // Individual dice system
+  individualDice: IndividualDiceConfig[];
+  addIndividualDie: () => void;
+  removeIndividualDie: (id: string) => void;
+  updateIndividualDie: (id: string, patch: Partial<Omit<IndividualDiceConfig, "id">>) => void;
+  setIndividualDiceFaceLabel: (id: string, index: 0 | 1 | 2 | 3 | 4 | 5, value: string) => void;
+
+  heldDice: boolean[];
+  toggleHold: (index: number) => void;
+  lastRoll: number[];
+  rollDice: () => number[];
+
+  call: CallState;
+  setCall: (patch: Partial<CallState>) => void;
+  addParticipant: (name: string, id?: string) => void;
+  removeParticipant: (id: string) => void;
+  updateParticipant: (id: string, patch: Partial<Omit<Participant, "id">>) => void;
+
+  // Chat actions
+  addChatMessage: (content: string) => void;
+  addSystemMessage: (content: string) => void;
+  clearChat: () => void;
+
+  selectedCameraId: string | null;
+  setSelectedCameraId: (id: string | null) => void;
+
+  // WebRTC state
+  webrtcManager: WebRTCManager | null;
+  signalingServerUrl: string;
+  roomId: string;
+  localStream: MediaStream | null;
+  remoteStreams: Map<string, MediaStream>;
+  webrtcConnected: boolean;
+  screenSharing: boolean;
+  setWebRTCManager: (manager: WebRTCManager | null) => void;
+  setLocalStream: (stream: MediaStream | null) => void;
+  addRemoteStream: (userId: string, stream: MediaStream) => void;
+  removeRemoteStream: (userId: string) => void;
+  setWebRTCConnected: (connected: boolean) => void;
+  setScreenSharing: (sharing: boolean) => void;
+  setRoomId: (roomId: string) => void;
+};
+
+export const useAppStore = create<AppState>((set, get) => ({
+  user: {
+    id: uid("user"),
+    name: "Creator",
+    role: "admin",
+  },
+  setUser: (user) => set({ user }),
+  setRole: (role) =>
+    set((state) => ({
+      user: state.user ? { ...state.user, role } : state.user,
+    })),
+
+  menuItems: [
+    {
+      id: uid("menu"),
+      title: "Creator schedule",
+      description: "Tonight 8pm: live Q&A, then collab stream.",
+    },
+    {
+      id: uid("menu"),
+      title: "Requests",
+      description: "Drop ideas for topics, guests, or challenges.",
+    },
+  ],
+  mediaItems: [
+    {
+      id: uid("media"),
+      title: "Latest highlight",
+      notes: "Replace with your YouTube/TikTok link.",
+      url: "",
+      mediaType: "link",
+    },
+    {
+      id: uid("media"),
+      title: "Sponsor spotlight",
+      notes: "Add a link and description.",
+      url: "",
+      mediaType: "link",
+    },
+  ],
+  announcements: [
+    {
+      id: uid("ann"),
+      title: "Welcome!",
+      body: "Type your name to join, check the boards, and roll the custom dice.",
+      createdAtIso: new Date().toISOString(),
+    },
+  ],
+
+  addMenuItem: (item) =>
+    set((state) => ({ menuItems: [{ id: uid("menu"), ...item }, ...state.menuItems] })),
+  updateMenuItem: (id, patch) =>
+    set((state) => ({
+      menuItems: state.menuItems.map((m) => (m.id === id ? { ...m, ...patch } : m)),
+    })),
+  removeMenuItem: (id) =>
+    set((state) => ({ menuItems: state.menuItems.filter((m) => m.id !== id) })),
+
+  addMediaItem: (item) =>
+    set((state) => ({ mediaItems: [{ id: uid("media"), ...item }, ...state.mediaItems] })),
+  updateMediaItem: (id, patch) =>
+    set((state) => ({
+      mediaItems: state.mediaItems.map((m) => (m.id === id ? { ...m, ...patch } : m)),
+    })),
+  removeMediaItem: (id) =>
+    set((state) => ({ mediaItems: state.mediaItems.filter((m) => m.id !== id) })),
+
+  addAnnouncement: (a) =>
+    set((state) => ({
+      announcements: [
+        { id: uid("ann"), createdAtIso: new Date().toISOString(), ...a },
+        ...state.announcements,
+      ],
+    })),
+  updateAnnouncement: (id, patch) =>
+    set((state) => ({
+      announcements: state.announcements.map((a) =>
+        a.id === id ? { ...a, ...patch } : a
+      ),
+    })),
+  removeAnnouncement: (id) =>
+    set((state) => ({
+      announcements: state.announcements.filter((a) => a.id !== id),
+    })),
+
+  diceConfig: defaultDiceConfig,
+  setDiceConfig: (patch) =>
+    set((state) => {
+      const newConfig = { ...state.diceConfig, ...patch };
+      // Reset held dice if count changes
+      if (patch.diceCount !== undefined && patch.diceCount !== state.diceConfig.diceCount) {
+        return { diceConfig: newConfig, heldDice: [] };
+      }
+      return { diceConfig: newConfig };
+    }),
+  setDiceFaceLabel: (index, value) =>
+    set((state) => {
+      const next = [...state.diceConfig.faceLabels] as DiceConfig["faceLabels"];
+      next[index] = value;
+      return { diceConfig: { ...state.diceConfig, faceLabels: next } };
+    }),
+
+  heldDice: [],
+  toggleHold: (index) =>
+    set((state) => {
+      const newHeld = [...(state.heldDice || [])];
+      // Ensure array is long enough
+      const count = state.individualDice.length;
+      while (newHeld.length < count) newHeld.push(false);
+
+      newHeld[index] = !newHeld[index];
+      return { heldDice: newHeld };
+    }),
+
+  lastRoll: [1, 1],
+  rollDice: () => {
+    const state = get();
+    const diceCount = state.individualDice.length;
+    const currentHeld = state.heldDice || [];
+    const currentRoll = state.lastRoll || [];
+
+    // Use crypto.getRandomValues for better randomness
+    const array = new Uint32Array(diceCount);
+    crypto.getRandomValues(array);
+
+    const newValues = Array.from({ length: diceCount }).map((_, i) => {
+      // If held, keep existing value (default to 1 if missing)
+      if (currentHeld[i] && currentRoll[i]) {
+        return currentRoll[i];
+      }
+      // Map 32-bit int to 1-6
+      return 1 + (array[i] % 6);
+    });
+
+    set({ lastRoll: newValues });
+    return newValues;
+  },
+
+  // Individual dice
+  individualDice: createDefaultIndividualDice(),
+  addIndividualDie: () =>
+    set((state) => {
+      if (state.individualDice.length >= 6) return {};
+      return {
+        individualDice: [
+          ...state.individualDice,
+          {
+            id: uid("die"),
+            diceColor: "#111827",
+            faceTextColor: "#ffffff",
+            faceLabels: ["1", "2", "3", "4", "5", "6"],
+          },
+        ],
+      };
+    }),
+  removeIndividualDie: (id) =>
+    set((state) => ({
+      individualDice: state.individualDice.filter((d) => d.id !== id),
+    })),
+  updateIndividualDie: (id, patch) =>
+    set((state) => ({
+      individualDice: state.individualDice.map((d) =>
+        d.id === id ? { ...d, ...patch } : d
+      ),
+    })),
+  setIndividualDiceFaceLabel: (id, index, value) =>
+    set((state) => ({
+      individualDice: state.individualDice.map((d) => {
+        if (d.id !== id) return d;
+        const next = [...d.faceLabels] as IndividualDiceConfig["faceLabels"];
+        next[index] = value;
+        return { ...d, faceLabels: next };
+      }),
+    })),
+
+  call: {
+    joined: false,
+    showDiceOverlay: true,
+    participants: [],
+    chatMessages: [],
+  },
+
+  selectedCameraId: null,
+  setSelectedCameraId: (id) => set({ selectedCameraId: id }),
+
+  setCall: (patch) => set((state) => ({ call: { ...state.call, ...patch } })),
+
+  addParticipant: (name, id) =>
+    set((state) => {
+      const newParticipant: Participant = {
+        id: id || uid("p"),
+        name,
+        cameraEnabled: true, // Default to true for remote participants
+        position: {
+          x: 20 + (state.call.participants.length * 30),
+          y: 20 + (state.call.participants.length * 30)
+        },
+        size: { width: 320, height: 240 },
+      };
+
+      // Add system message
+      const systemMessage: ChatMessage = {
+        id: uid("msg"),
+        senderId: "system",
+        senderName: "System",
+        content: `${name} joined the call`,
+        timestamp: new Date().toISOString(),
+        type: "system",
+      };
+
+      return {
+        call: {
+          ...state.call,
+          participants: [...state.call.participants, newParticipant],
+          chatMessages: [...state.call.chatMessages, systemMessage],
+        },
+      };
+    }),
+
+  removeParticipant: (id) =>
+    set((state) => {
+      const participant = state.call.participants.find((p) => p.id === id);
+      const systemMessage: ChatMessage | null = participant
+        ? {
+          id: uid("msg"),
+          senderId: "system",
+          senderName: "System",
+          content: `${participant.name} left the call`,
+          timestamp: new Date().toISOString(),
+          type: "system",
+        }
+        : null;
+
+      return {
+        call: {
+          ...state.call,
+          participants: state.call.participants.filter((p) => p.id !== id),
+          chatMessages: systemMessage
+            ? [...state.call.chatMessages, systemMessage]
+            : state.call.chatMessages,
+        },
+      };
+    }),
+
+  updateParticipant: (id, patch) =>
+    set((state) => ({
+      call: {
+        ...state.call,
+        participants: state.call.participants.map((p) =>
+          p.id === id ? { ...p, ...patch } : p
+        ),
+      },
+    })),
+
+  // Chat actions
+  addChatMessage: (content) =>
+    set((state) => {
+      const user = state.user;
+      if (!user) return {};
+
+      const message: ChatMessage = {
+        id: uid("msg"),
+        senderId: user.name,
+        senderName: user.name,
+        content,
+        timestamp: new Date().toISOString(),
+        type: "user",
+      };
+
+      return {
+        call: {
+          ...state.call,
+          chatMessages: [...state.call.chatMessages, message],
+        },
+      };
+    }),
+
+  addSystemMessage: (content) =>
+    set((state) => {
+      const message: ChatMessage = {
+        id: uid("msg"),
+        senderId: "system",
+        senderName: "System",
+        content,
+        timestamp: new Date().toISOString(),
+        type: "system",
+      };
+
+      return {
+        call: {
+          ...state.call,
+          chatMessages: [...state.call.chatMessages, message],
+        },
+      };
+    }),
+
+  clearChat: () =>
+    set((state) => ({
+      call: {
+        ...state.call,
+        chatMessages: [],
+      },
+    })),
+
+  // WebRTC state
+  webrtcManager: null,
+  signalingServerUrl: import.meta.env.VITE_SIGNALING_URL || "http://localhost:3001",
+  roomId: "default-room",
+  localStream: null,
+  remoteStreams: new Map(),
+  webrtcConnected: false,
+  screenSharing: false,
+
+  setWebRTCManager: (manager) => set({ webrtcManager: manager }),
+  setLocalStream: (stream) => set({ localStream: stream }),
+  addRemoteStream: (userId, stream) =>
+    set((state) => {
+      const newStreams = new Map(state.remoteStreams);
+      newStreams.set(userId, stream);
+      return { remoteStreams: newStreams };
+    }),
+  removeRemoteStream: (userId) =>
+    set((state) => {
+      const newStreams = new Map(state.remoteStreams);
+      newStreams.delete(userId);
+      return { remoteStreams: newStreams };
+    }),
+  setWebRTCConnected: (connected) => set({ webrtcConnected: connected }),
+  setScreenSharing: (sharing) => set({ screenSharing: sharing }),
+  setRoomId: (roomId) => set({ roomId }),
+}));
