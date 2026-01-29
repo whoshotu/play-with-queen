@@ -1,4 +1,4 @@
-export type Role = "visitor" | "mod" | "admin";
+export type Role = "guest" | "visitor" | "mod" | "creator" | "admin";
 
 export type User = {
   id: string;
@@ -57,8 +57,12 @@ export type ChatMessage = {
 export type Participant = {
   id: string;
   name: string;
+  role: Role;
   streamId?: string; // Reference to media stream
   cameraEnabled: boolean;
+  micEnabled: boolean;
+  canSpeak: boolean; // Permission from admin
+  canShowCamera: boolean; // Permission from admin
   position: { x: number; y: number };
   size: { width: number; height: number };
 };

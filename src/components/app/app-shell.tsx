@@ -67,7 +67,7 @@ export function AppShell() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
 
-                {user?.role === "admin" && (
+                {(user?.role === "admin" || user?.role === "creator") && (
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild tooltip="Admin">
                       <NavLink to="/admin" className={navLinkClass}>
@@ -94,8 +94,8 @@ export function AppShell() {
         <SidebarFooter>
           <div className="flex items-center justify-between gap-2 rounded-md border bg-background p-2">
             <div className="min-w-0">
-              <div className="truncate text-sm font-medium">{user?.name ?? "Guest"}</div>
-              <div className="text-muted-foreground truncate text-xs">{user?.role ?? "visitor"}</div>
+              <div className="truncate text-sm font-medium">{user?.name ?? "Guest User"}</div>
+              <div className="text-muted-foreground truncate text-xs">{user?.role ?? "guest"}</div>
             </div>
             <div className="flex items-center gap-2">
               <Button size="icon" variant="outline" onClick={() => setUser(null)} title="Change name">

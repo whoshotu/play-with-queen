@@ -102,6 +102,9 @@ function useLocalCamera() {
   return { videoRef, status, error, request, stop, stream: streamRef.current };
 }
 
+// Export for use in other components
+export { useLocalCamera as useCameraStream };
+
 export function CallPanel(props: { title?: string; description?: string }) {
   const user = useAppStore((s) => s.user);
   const call = useAppStore((s) => s.call);

@@ -3,7 +3,7 @@ import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
 
 import { AppShell } from "@/components/app/app-shell";
-import { NameGate } from "@/components/app/name-gate";
+import { LoginGate } from "@/components/app/login-gate";
 
 import HubPage from "@/pages/hub-page";
 import DicePage from "@/pages/dice-page";
@@ -14,7 +14,7 @@ import NotFoundPage from "@/pages/not-found";
 export default function App() {
   return (
     <HashRouter>
-      <NameGate />
+      <LoginGate />
       <Toaster richColors />
 
       <Routes>

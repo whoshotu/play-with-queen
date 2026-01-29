@@ -11,6 +11,7 @@ import {
   canEditAnnouncements,
   canEditBoards,
   canManageRoles,
+  canEditDice,
 } from "@/lib/permissions";
 import { useAppStore } from "@/store/useAppStore";
 import { IndividualDiceCustomizer } from "@/components/dice/individual-dice-customizer";
@@ -21,6 +22,7 @@ export default function AdminPage() {
   const canBoards = user ? canEditBoards(user.role) : false;
   const canRoles = user ? canManageRoles(user.role) : false;
   const canAnn = user ? canEditAnnouncements(user.role) : false;
+  const canDice = user ? canEditDice(user.role) : false;
 
   const menuItems = useAppStore((s) => s.menuItems);
   const mediaItems = useAppStore((s) => s.mediaItems);
@@ -40,14 +42,13 @@ export default function AdminPage() {
 
   const setRole = useAppStore((s) => s.setRole);
 
-  if (!user || user.role === "visitor") {
+  if (!user || user.role === "guest" || user.role === "visitor") {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Admin dashboard</CardTitle>
+          <CardTitle>Access Restricted</CardTitle>
           <CardDescription>
-            You don’t have access. Re-enter with the <span className="font-medium">creator</span> or{" "}
-            <span className="font-medium">mod</span> access code.
+            This area is for creators and moderators only. Log in with creator access to manage content.
           </CardDescription>
         </CardHeader>
       </Card>

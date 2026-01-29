@@ -114,9 +114,9 @@ type AppState = {
 
 export const useAppStore = create<AppState>((set, get) => ({
   user: {
-    id: uid("user"),
-    name: "Creator",
-    role: "admin",
+    id: uid("guest"),
+    name: "Guest",
+    role: "guest",
   },
   setUser: (user) => set({ user }),
   setRole: (role) =>
@@ -304,12 +304,16 @@ export const useAppStore = create<AppState>((set, get) => ({
       const newParticipant: Participant = {
         id: id || uid("p"),
         name,
-        cameraEnabled: true, // Default to true for remote participants
+        role: "guest", // Default role for new participants
+        cameraEnabled: false, // Default to false - requires admin approval
+        micEnabled: false, // Default to false - requires admin approval
+        canSpeak: false, // Requires admin approval
+        canShowCamera: false, // Requires admin approval
         position: {
           x: 20 + (state.call.participants.length * 30),
-          y: 20 + (state.call.participants.length * 30)
+          y: 20 + (state.call.participants.length * 30),
         },
-        size: { width: 320, height: 240 },
+        size: { width: 240, height: 180 },
       };
 
       // Add system message
