@@ -423,7 +423,17 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // WebRTC state
   webrtcManager: null,
-  signalingServerUrl: import.meta.env.VITE_SIGNALING_URL || "https://146.235.229.114:3001",
+  signalingServerUrl: (() => {
+    const envUrl = import.meta.env.VITE_SIGNALING_URL;
+    if (envUrl) return envUrl;
+    
+    const isHttps = window.location.protocol === 'https:';
+    
+    // For now, we'll need to handle the mixed content issue differently
+    // The signaling server at 146.235.229.114:3001 only supports HTTP
+    // We'll use HTTP and handle the mixed content warning
+    return "http://146.235.229.114:3001";
+  })(),
   roomId: "default-room",
   localStream: null,
   remoteStreams: new Map(),

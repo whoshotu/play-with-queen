@@ -40,18 +40,30 @@ export class WebRTCManager {
     async connect(): Promise<void> {
         return new Promise((resolve, reject) => {
             try {
-                // Force secure WebSocket (wss://) when on HTTPS
                 const isSecure = window.location.protocol === 'https:';
-                const url = isSecure && this.config.signalingServerUrl.startsWith('http://') 
-                    ? this.config.signalingServerUrl.replace('http://', 'https://')
-                    : this.config.signalingServerUrl;
+                let url = this.config.signalingServerUrl;
                 
-                this.socket = io(url, {
-                    transports: ['websocket', 'polling'],
-                    secure: isSecure,
-                    timeout: 10000, // 10 second connection timeout
-                    forceNew: true,
-                });
+                // For HTTPS sites, we need to handle mixed content carefully
+                if (isSecure && url.startsWith('http://')) {
+                    console.warn('[WebRTC] Warning: Mixed content - connecting to HTTP signaling server from HTTPS page');
+                    console.warn('[WebRTC] This may be blocked by the browser. Consider using HTTPS signaling server.');
+                    
+                    // Try polling first as fallback for mixed content scenarios
+                    this.socket = io(url, {
+                        transports: ['polling'], // Start with polling to avoid WebSocket mixed content
+                        secure: false,
+                        timeout: 10000,
+                        forceNew: true,
+                        upgrade: false, // Don't upgrade to WebSocket to avoid mixed content
+                    });
+                } else {
+                    this.socket = io(url, {
+                        transports: ['websocket', 'polling'],
+                        secure: isSecure,
+                        timeout: 10000,
+                        forceNew: true,
+                    });
+                }
 
                 this.socket.on('connect', () => {
                     console.log('[WebRTC] Connected to signaling server');
@@ -64,6 +76,41 @@ export class WebRTCManager {
                 this.socket.on('connect_error', (error) => {
                     console.error('[WebRTC] Connection error:', error);
                     this.onConnectionStateChange?.('error');
+                    
+                    // If mixed content blocked, try polling-only approach
+                    if (isSecure && (error.message?.includes('blocked') || error.message?.includes('Mixed Content'))) {
+                        console.log('[WebRTC] Mixed content blocked, trying polling-only connection...');
+                        
+                        // Destroy current socket and try polling only
+                        if (this.socket) {
+                            this.socket.disconnect();
+                            this.socket = null;
+                        }
+                        
+                        setTimeout(() => {
+                            this.socket = io(url, {
+                                transports: ['polling'],
+                                secure: false,
+                                timeout: 10000,
+                                forceNew: true,
+                                upgrade: false,
+                            });
+                            
+                            this.socket.on('connect', () => {
+                                console.log('[WebRTC] Connected via polling');
+                                this.setupSignalingListeners();
+                                this.joinRoom();
+                                this.onConnectionStateChange?.('connected');
+                                resolve();
+                            });
+                            
+                            this.socket.on('connect_error', (pollError) => {
+                                console.error('[WebRTC] Polling connection also failed:', pollError);
+                                reject(new Error('Connection failed: Mixed content blocked and polling failed'));
+                            });
+                        }, 1000);
+                        return;
+                    }
                     
                     // Retry connection if it's a timeout or network error
                     if (error.message?.includes('timeout') || error.message?.includes('network')) {
