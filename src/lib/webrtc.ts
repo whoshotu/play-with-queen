@@ -40,8 +40,17 @@ export class WebRTCManager {
     async connect(): Promise<void> {
         return new Promise((resolve, reject) => {
             try {
-                this.socket = io(this.config.signalingServerUrl, {
+                // Force secure WebSocket (wss://) when on HTTPS
+                const isSecure = window.location.protocol === 'https:';
+                const url = isSecure && this.config.signalingServerUrl.startsWith('http://') 
+                    ? this.config.signalingServerUrl.replace('http://', 'https://')
+                    : this.config.signalingServerUrl;
+                
+                this.socket = io(url, {
                     transports: ['websocket', 'polling'],
+                    secure: isSecure,
+                    timeout: 10000, // 10 second connection timeout
+                    forceNew: true,
                 });
 
                 this.socket.on('connect', () => {
@@ -55,6 +64,17 @@ export class WebRTCManager {
                 this.socket.on('connect_error', (error) => {
                     console.error('[WebRTC] Connection error:', error);
                     this.onConnectionStateChange?.('error');
+                    
+                    // Retry connection if it's a timeout or network error
+                    if (error.message?.includes('timeout') || error.message?.includes('network')) {
+                        console.log('[WebRTC] Retrying connection in 3 seconds...');
+                        setTimeout(() => {
+                            if (!this.socket?.connected) {
+                                this.socket?.connect();
+                            }
+                        }, 3000);
+                    }
+                    
                     reject(error);
                 });
 
@@ -204,7 +224,11 @@ export class WebRTCManager {
             return;
         }
 
-        const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+        const pc = new RTCPeerConnection({ 
+            iceServers: ICE_SERVERS,
+            iceCandidatePoolSize: 10, // Pre-gather ICE candidates
+            iceTransportPolicy: 'all' // Allow all ICE candidates
+        });
 
         // Add local stream tracks
         if (this.localStream) {
@@ -238,10 +262,29 @@ export class WebRTCManager {
         // Handle connection state changes
         pc.onconnectionstatechange = () => {
             console.log('[WebRTC] Connection state for', userId, ':', pc.connectionState);
-            if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+            if (pc.connectionState === 'failed') {
+                console.log('[WebRTC] Connection failed, attempting to restart ICE');
+                pc.restartIce();
+                // Restart connection after a delay if it's still failed
+                setTimeout(() => {
+                    if (pc.connectionState === 'failed') {
+                        this.closePeerConnection(userId);
+                        // Recreate connection
+                        this.createPeerConnection(userId, socketId, initiator);
+                    }
+                }, 5000);
+            } else if (pc.connectionState === 'closed') {
                 this.closePeerConnection(userId);
             }
         };
+
+        // Set connection timeout
+        setTimeout(() => {
+            if (pc.connectionState === 'connecting' || pc.connectionState === 'new') {
+                console.log('[WebRTC] Connection timeout for', userId);
+                this.closePeerConnection(userId);
+            }
+        }, 15000); // 15 second timeout
 
         this.peerConnections.set(userId, { connection: pc, stream: null });
 

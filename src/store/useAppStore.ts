@@ -423,7 +423,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // WebRTC state
   webrtcManager: null,
-  signalingServerUrl: import.meta.env.VITE_SIGNALING_URL || "http://146.235.229.114:3001",
+  signalingServerUrl: import.meta.env.VITE_SIGNALING_URL || "https://146.235.229.114:3001",
   roomId: "default-room",
   localStream: null,
   remoteStreams: new Map(),

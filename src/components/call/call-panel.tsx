@@ -62,17 +62,35 @@ function useLocalCamera() {
       setStatus("denied");
 
       let msg = "Camera access error.";
+      let canRetry = false;
+      
       if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
-        msg = "Permission denied. Check browser settings.";
+        msg = "Camera permission denied. Click the camera icon in your browser's address bar to allow camera access, then refresh the page.";
       } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
-        msg = "No camera found on device.";
+        msg = "No camera found. Please connect a camera and try again.";
+        canRetry = true;
       } else if (error.name === "NotReadableError" || error.name === "TrackStartError") {
-        msg = "Camera may be in use by another app.";
+        msg = "Camera is already in use by another application. Close other apps using the camera and try again.";
+        canRetry = true;
+      } else if (error.name === "OverconstrainedError" || error.name === "ConstraintNotSatisfiedError") {
+        msg = "Camera doesn't support the requested settings. Trying with default settings...";
+        canRetry = true;
       } else if (error.message) {
         msg = `${error.message}`;
+        canRetry = true;
       }
 
       setError(msg);
+      
+      // Auto-retry for certain errors
+      if (canRetry) {
+        console.log('[Camera] Auto-retrying in 2 seconds...');
+        setTimeout(() => {
+          if (status === "denied") {
+            request(deviceId);
+          }
+        }, 2000);
+      }
       throw err;
     }
   }, []);
@@ -174,6 +192,20 @@ export function CallPanel(props: { title?: string; description?: string }) {
       setCall({ joined: true });
     } catch (err) {
       console.error("Failed to join call:", err);
+      const error = err as Error;
+      
+      if (error.message?.includes('timeout')) {
+        addSystemMessage("Connection timeout. Check your internet connection and try again.");
+      } else if (error.message?.includes('Permission denied')) {
+        addSystemMessage("Camera/microphone permission denied. Please allow access in your browser settings.");
+      } else if (error.message?.includes('NotAllowedError')) {
+        addSystemMessage("Camera access was denied. Please click the camera icon in your browser's address bar to allow access.");
+      } else {
+        addSystemMessage(`Failed to join call: ${error.message || 'Unknown error'}`);
+      }
+      
+      setWebRTCManager(null);
+      setWebRTCConnected(false);
     }
   }, [user, roomId, signalingServerUrl, selectedCameraId, request, setWebRTCManager, setWebRTCConnected, addSystemMessage, addParticipant, addRemoteStream, removeRemoteStream, setCall]);
 
