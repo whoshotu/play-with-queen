@@ -18,7 +18,6 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 
 import { Dice3, LayoutDashboard, LogOut, MessageSquareText, Video } from "lucide-react";
 

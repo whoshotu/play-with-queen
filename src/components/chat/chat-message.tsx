@@ -9,6 +9,11 @@ export function ChatMessage({ message, isOwnMessage }: {
 }) {
     const isSystem = message.type === "system";
 
+    const isEmojiOnly = React.useMemo(() => {
+        const emojiRegex = /^(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff]|[\s\u200d])+$/;
+        return emojiRegex.test(message.content);
+    }, [message.content]);
+
     if (isSystem) {
         return (
             <div className="flex justify-center py-2">
@@ -18,11 +23,6 @@ export function ChatMessage({ message, isOwnMessage }: {
             </div>
         );
     }
-
-    const isEmojiOnly = React.useMemo(() => {
-        const emojiRegex = /^(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff]|[\s\u200d])+$/;
-        return emojiRegex.test(message.content);
-    }, [message.content]);
 
     return (
         <div

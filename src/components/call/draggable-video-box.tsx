@@ -1,8 +1,6 @@
 import * as React from "react";
 import { Rnd } from "react-rnd";
-import { Video, VideoOff, GripVertical, Monitor } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { VideoOff, GripVertical, Video } from "lucide-react";
 import type { Participant } from "@/lib/types";
 import { useAppStore } from "@/store/useAppStore";
 
@@ -57,6 +55,18 @@ export function DraggableVideoBox({
                         <GripVertical className="h-4 w-4 text-white/80" />
                         <span className="text-xs font-medium text-white">{participant.name}</span>
                     </div>
+                    {!isRemote && (
+                        <button
+                            onClick={() => onCameraToggle(!participant.cameraEnabled)}
+                            className="rounded-full bg-white/20 p-1 hover:bg-white/30 transition-colors"
+                        >
+                            {participant.cameraEnabled ? (
+                                <Video className="h-3 w-3 text-white" />
+                            ) : (
+                                <VideoOff className="h-3 w-3 text-white" />
+                            )}
+                        </button>
+                    )}
                 </div>
 
                 {/* Video Content */}

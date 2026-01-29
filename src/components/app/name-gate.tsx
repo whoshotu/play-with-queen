@@ -70,7 +70,11 @@ export function NameGate() {
             onClick={() => {
               const safeName = name.trim();
               if (!safeName) return;
-              setUser({ name: safeName, role: roleFromCode(code) });
+              setUser({ 
+                id: crypto.randomUUID(), 
+                name: safeName, 
+                role: roleFromCode(code) 
+              });
             }}
           >
             Enter

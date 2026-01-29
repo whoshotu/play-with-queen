@@ -10,7 +10,6 @@ import { Switch } from "@/components/ui/switch";
 import {
   canEditAnnouncements,
   canEditBoards,
-  canEditDice,
   canManageRoles,
 } from "@/lib/permissions";
 import { useAppStore } from "@/store/useAppStore";
@@ -20,7 +19,6 @@ export default function AdminPage() {
   const user = useAppStore((s) => s.user);
 
   const canBoards = user ? canEditBoards(user.role) : false;
-  const canDice = user ? canEditDice(user.role) : false;
   const canRoles = user ? canManageRoles(user.role) : false;
   const canAnn = user ? canEditAnnouncements(user.role) : false;
 
@@ -36,9 +34,6 @@ export default function AdminPage() {
 
   const updateAnnouncement = useAppStore((s) => s.updateAnnouncement);
   const removeAnnouncement = useAppStore((s) => s.removeAnnouncement);
-
-  const diceConfig = useAppStore((s) => s.diceConfig);
-  const setDiceConfig = useAppStore((s) => s.setDiceConfig);
 
   const call = useAppStore((s) => s.call);
   const setCall = useAppStore((s) => s.setCall);
