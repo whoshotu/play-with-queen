@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 
-import { Dice3, LayoutDashboard, LogOut, MessageSquareText, Video } from "lucide-react";
+import { Dice3, HelpCircle, LayoutDashboard, LogOut, MessageSquareText, Video } from "lucide-react";
 
 import { useAppStore } from "@/store/useAppStore";
 
@@ -63,6 +63,15 @@ export function AppShell() {
                     <NavLink to="/dice" className={navLinkClass}>
                       <Dice3 />
                       <span>Dice game</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild tooltip="Truth or Dare">
+                    <NavLink to="/truth-or-dare" className={navLinkClass}>
+                      <HelpCircle />
+                      <span>Truth or Dare</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

@@ -8,102 +8,11 @@ import { Switch } from "@/components/ui/switch";
 import { Video, VideoOff, Monitor, MonitorOff } from "lucide-react";
 
 import { useAppStore } from "@/store/useAppStore";
+import { useCameraStream } from "@/hooks/useCameraStream";
 import { IndividualDicePreview } from "@/components/dice/individual-dice-preview";
 import { DraggableVideoBox } from "./draggable-video-box";
 import { EmojiReactions } from "./emoji-reactions";
 import { WebRTCManager } from "@/lib/webrtc";
-
-type CameraStatus = "idle" | "requesting" | "granted" | "denied";
-
-function useLocalCamera() {
-  const videoRef = React.useRef<HTMLVideoElement | null>(null);
-  const [status, setStatus] = React.useState<CameraStatus>("idle");
-  const [error, setError] = React.useState<string | null>(null);
-  const streamRef = React.useRef<MediaStream | null>(null);
-  const setLocalStream = useAppStore((s) => s.setLocalStream);
-  const localStream = useAppStore((s) => s.localStream);
-
-  React.useEffect(() => {
-    if (videoRef.current && localStream) {
-      videoRef.current.srcObject = localStream;
-    }
-  }, [localStream]);
-
-  const stop = React.useCallback(() => {
-    if (videoRef.current) videoRef.current.srcObject = null;
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    streamRef.current = null;
-    setStatus("idle");
-    setLocalStream(null);
-  }, [setLocalStream]);
-
-  const request = React.useCallback(async (deviceId?: string) => {
-    setError(null);
-    setStatus("requesting");
-
-    try {
-      if (!navigator.mediaDevices?.getUserMedia) {
-        throw new Error("Camera API missing. Secure context (HTTPS) required?");
-      }
-
-      const constraints: MediaStreamConstraints = {
-        video: deviceId ? { deviceId: { exact: deviceId } } : true,
-        audio: true, // Enable audio for real calling
-      };
-
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      streamRef.current = stream;
-      setLocalStream(stream);
-      setStatus("granted");
-      return stream;
-    } catch (err: unknown) {
-      console.error("Camera access failed:", err);
-      const error = err as Error;
-      setStatus("denied");
-
-      let msg = "Camera access error.";
-      let canRetry = false;
-      
-      if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
-        msg = "Camera permission denied. Click the camera icon in your browser's address bar to allow camera access, then refresh the page.";
-      } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
-        msg = "No camera found. Please connect a camera and try again.";
-        canRetry = true;
-      } else if (error.name === "NotReadableError" || error.name === "TrackStartError") {
-        msg = "Camera is already in use by another application. Close other apps using the camera and try again.";
-        canRetry = true;
-      } else if (error.name === "OverconstrainedError" || error.name === "ConstraintNotSatisfiedError") {
-        msg = "Camera doesn't support the requested settings. Trying with default settings...";
-        canRetry = true;
-      } else if (error.message) {
-        msg = `${error.message}`;
-        canRetry = true;
-      }
-
-      setError(msg);
-      
-      // Auto-retry for certain errors
-      if (canRetry) {
-        console.log('[Camera] Auto-retrying in 2 seconds...');
-        setTimeout(() => {
-          if (status === "denied") {
-            request(deviceId);
-          }
-        }, 2000);
-      }
-      throw err;
-    }
-  }, []);
-
-  React.useEffect(() => {
-    return () => stop();
-  }, [stop]);
-
-  return { videoRef, status, error, request, stop, stream: streamRef.current };
-}
-
-// Export for use in other components
-export { useLocalCamera as useCameraStream };
 
 export function CallPanel(props: { title?: string; description?: string }) {
   const user = useAppStore((s) => s.user);
@@ -135,7 +44,7 @@ export function CallPanel(props: { title?: string; description?: string }) {
   const addParticipant = useAppStore((s) => s.addParticipant);
   const updateParticipant = useAppStore((s) => s.updateParticipant);
 
-  const { videoRef, status, error, request, stop } = useLocalCamera();
+  const { videoRef, status, error, request, stop } = useCameraStream();
   const [rolling, setRolling] = React.useState(false);
 
   const [videoDevices, setVideoDevices] = React.useState<MediaDeviceInfo[]>([]);

@@ -7,6 +7,7 @@ import { LoginGate } from "@/components/app/login-gate";
 
 import HubPage from "@/pages/hub-page";
 import DicePage from "@/pages/dice-page";
+import TruthOrDarePage from "@/pages/truth-or-dare-page";
 import AdminPage from "@/pages/admin-page";
 import CallPage from "@/pages/call-page";
 import NotFoundPage from "@/pages/not-found";
@@ -21,6 +22,7 @@ export default function App() {
         <Route element={<AppShell />}>
           <Route path="/" element={<HubPage />} />
           <Route path="/dice" element={<DicePage />} />
+          <Route path="/truth-or-dare" element={<TruthOrDarePage />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/call" element={<CallPage />} />
           <Route path="/home" element={<Navigate to="/" replace />} />

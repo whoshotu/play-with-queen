@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users, Video, Mic, MicOff, VideoOff, Hand, Crown, Shield } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
-import { useCameraStream } from "@/components/call/call-panel";
+import { useCameraStream } from "@/hooks/useCameraStream";
 import { canUseCameraByDefault, canSpeakByDefault, isAdminOrMod } from "@/lib/permissions";
 
 export function StagePanel() {
