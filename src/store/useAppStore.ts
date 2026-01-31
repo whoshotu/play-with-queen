@@ -1,5 +1,7 @@
 /// <reference types="vite/client" />
 
+/// <reference types="vite/client" />
+
 import { create } from "zustand";
 
 import type {
@@ -12,14 +14,9 @@ import type {
   MenuItem,
   Participant,
   Role,
-  SpiceLevel,
-  TruthOrDarePrompt,
-  TwistEvent,
-  TwistType,
   User,
 } from "@/lib/types";
 import { WebRTCManager } from "@/lib/webrtc";
-import { TRUTH_PROMPTS, DARE_PROMPTS } from "@/data/truth-or-dare-prompts";
 
 function uid(prefix: string) {
   return `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`;
@@ -88,13 +85,6 @@ type AppState = {
   lastRoll: number[];
   rollDice: () => number[];
   
-  // Individual dice
-  individualDice: IndividualDiceConfig[];
-  addIndividualDie: () => void;
-  removeIndividualDie: (id: string) => void;
-  updateIndividualDie: (id: string, patch: Partial<Omit<IndividualDiceConfig, "id">>) => void;
-  setIndividualDiceFaceLabel: (id: string, index: 0 | 1 | 2 | 3 | 4 | 5, value: string) => void;
-  
   call: CallState;
   setCall: (patch: Partial<CallState>) => void;
   addParticipant: (name: string, id?: string) => void;
@@ -108,53 +98,6 @@ type AppState = {
   
   selectedCameraId: string | null;
   setSelectedCameraId: (id: string | null) => void;
-  
-  // Truth or Dare game
-  truthOrDare: {
-    currentPrompt: TruthOrDarePrompt | null;
-    usedPrompts: string[];
-    playerTurn: string | null;
-    spiceMode: SpiceLevel;
-    skipsRemaining: number;
-    twistActive: boolean;
-    currentTwist: TwistEvent | null;
-  };
-  
-  onTruthOrDareReveal: (prompt, playerId) => void,
-  onTruthOrDareTwist: (twist) => void,
-  selectTruthOrDare: (prompt: TruthOrDarePrompt) => void,
-  
-  onTruthOrDareTurnStart: (playerId: string) => void,
-  onTruthOrDareTurnEnd: (playerId: string, completed: boolean) => void,
-  
-  setSpiceMode: (spice: SpiceLevel) => void,
-  skipTurn: () => void,
-  forfeitTurn: () => void,
-  completeTurn: () => void,
-  applyTwist: (twist: TwistEvent) => void,
-  resetTruthOrDareGame: () => void;
-  
-  // Truth or Dare game
-  truthOrDare: {
-    currentPrompt: TruthOrDarePrompt | null;
-    usedPrompts: string[];
-  playerTurn: string | null;
-  spiceMode: SpiceLevel;
-  skipsRemaining: number;
-  twistActive: boolean;
-  currentTwist: TwistEvent | null;
-};
-  selectTruthOrDare: (prompt: TruthOrDarePrompt) => void;
-  setSpiceMode: (spice: SpiceLevel) => void;
-  skipTurn: () => void;
-  forfeitTurn: () => void;
-  completeTurn: () => void;
-  applyTwist: (twist: TwistEvent) => void;
-  resetTruthOrDareGame: () => void;
-  onTruthOrDareTurnStart: (playerId: string) => void;
-  onTruthOrDareTurnEnd: (playerId: string, completed: boolean) => void;
-  onTruthOrDareReveal: (prompt: TruthOrDarePrompt, playerId: string) => void;
-  onTruthOrDareTwist: (twist: TwistEvent) => void;
   
   // Dice synchronization
   onDiceRoll: (roll: number[], userId: string, timestamp: number) => void;
@@ -528,140 +471,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   remoteStreams: new Map(),
   webrtcConnected: false,
   screenSharing: false,
-  
-  onDiceRoll: (roll, userId, timestamp) => {
-    set({ lastRoll: roll });
-  },
-  
-  onDiceConfig: (config, userId, timestamp) => {
-    set({ individualDice: config });
-  },
-  
-  // Truth or Dare game
-  truthOrDare: {
-    currentPrompt: null,
-    usedPrompts: [],
-    playerTurn: null,
-    spiceMode: 'mild',
-    skipsRemaining: 3,
-    twistActive: false,
-    currentTwist: null,
-  },
-  onTruthOrDareTurnStart: (playerId) => {
-    const state = get();
-    if (state.user?.id !== playerId) {
-      set((storeState) => ({
-        truthOrDare: { ...storeState.truthOrDare, playerTurn: playerId },
-      }));
-    }
-  },
-  onTruthOrDareTurnEnd: (playerId, completed) => {
-    const state = get();
-    if (state.user?.id !== playerId) {
-      set((storeState) => ({
-        truthOrDare: { ...storeState.truthOrDare, playerTurn: null },
-      }));
-    }
-  },
-  onTruthOrDareSelect: (selection) => {
-    const state = get();
-    if (state.user?.id !== selection.playerId) {
-      set((storeState) => ({
-        truthOrDare: { ...storeState.truthOrDare, currentPrompt: selection.prompt },
-      }));
-    }
-  },
-  
-  onTruthOrDareTurnStart: (playerId) => {
-    const state = get();
-    if (state.user?.id !== playerId) {
-      set((storeState) => ({
-        truthOrDare: { ...storeState.truthOrDare, playerTurn: playerId },
-      }));
-    }
-  },
-  onTruthOrDareTurnEnd: (playerId, completed) => {
-    const state = get();
-    if (state.user?.id !== playerId) {
-      set((storeState) => ({
-        truthOrDare: { ...storeState.truthOrDare, playerTurn: null },
-      }));
-    }
-    },
-  onTruthOrDareSelect: (selection) => {
-      const state = get();
-      set((storeState) => ({
-        truthOrDare: { ...storeState.truthOrDare, currentPrompt: selection.prompt },
-      }));
-      
-      if (state.webrtcManager) {
-        state.webrtcManager.sendMessage({
-          id: uid('msg'),
-          senderId: state.user?.id || '',
-          senderName: state.user?.name || '',
-          content: `selected ${selection.type} (${state.truthOrDare.spiceMode})`,
-          timestamp: new Date().toISOString(),
-          type: 'system',
-        } as any);
-      }
-    },
-    onTruthOrDareSelect: (selection) => {
-      const state = get();
-      set((storeState) => ({
-        truthOrDare: { ...storeState.truthOrDare, currentPrompt: selection.prompt },
-      }));
-      
-      if (state.webrtcManager) {
-        state.webrtcManager.sendMessage({
-          id: uid('msg'),
-          senderId: state.user?.id || '',
-          senderName: state.user?.name || '',
-          content: `selected ${selection.type} (${state.truthOrDare.spiceMode})`,
-          timestamp: new Date().toISOString(),
-          type: 'system',
-        } as any);
-      }
-    },
-  onTruthOrDareTwist: (twist) => {
-    const state = get();
-    set((storeState) => ({
-      truthOrDare: { ...storeState.truthOrDare, twistActive: true, currentTwist: twist },
-    }));
-  },
-  selectTruthOrDare: (prompt) => {
-    set((state) => ({
-      truthOrDare: { ...state.truthOrDare, currentPrompt: prompt },
-    }));
-  },
-  setSpiceMode: (spice) => set((state) => ({ truthOrDare: { ...state.truthOrDare, spiceMode: spice } })),
-  skipTurn: () => set((state) => {
-    const newSkips = Math.max(0, state.truthOrDare.skipsRemaining - 1);
-    set({ truthOrDare: { ...state.truthOrDare, skipsRemaining: newSkips, playerTurn: null } });
-  }),
-  forfeitTurn: () => set((state) => ({
-    truthOrDare: { ...state.truthOrDare, playerTurn: null },
-  })),
-  completeTurn: () => set((state) => {
-    const newUsed = [...state.truthOrDare.usedPrompts];
-    if (state.truthOrDare.currentPrompt) {
-      newUsed.push(state.truthOrDare.currentPrompt.id);
-    }
-    set({ truthOrDare: { ...state.truthOrDare, usedPrompts: newUsed, playerTurn: null } });
-  }),
-  applyTwist: (twist) => set((state) => ({
-    truthOrDare: { ...state.truthOrDare, twistActive: true, currentTwist: twist },
-  })),
-  resetTruthOrDareGame: () => set((state) => ({
-    truthOrDare: {
-      currentPrompt: null,
-      usedPrompts: [],
-      playerTurn: null,
-      spiceMode: 'mild',
-      skipsRemaining: 3,
-      twistActive: false,
-      currentTwist: null,
-    },
-  })),
   
   onDiceRoll: (roll, userId, timestamp) => {
     set({ lastRoll: roll });

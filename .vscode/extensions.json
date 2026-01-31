@@ -1,0 +1,8 @@
+{
+    "recommendations": [
+        "sst-dev.opencode",
+        "ms-azuretools.vscode-docker",
+        "dbaeumer.vscode-eslint",
+        "ms-kubernetes-tools.vscode-kubernetes-tools"
+    ]
+}

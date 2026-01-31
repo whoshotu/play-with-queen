@@ -1,7 +1,6 @@
 import { create } from "zustand";
-import { TruthOrDarePrompt, SpiceLevel, TwistType, TwistEvent } from "@/lib/types";
+import { TruthOrDarePrompt, SpiceLevel, TwistEvent } from "@/lib/types";
 import { TRUTH_PROMPTS, DARE_PROMPTS } from "@/data/truth-or-dare-prompts";
-import { uid } from "@/lib/webrtc";
 
 export type TruthOrDareState = {
   currentPrompt: TruthOrDarePrompt | null;
@@ -11,22 +10,20 @@ export type TruthOrDareState = {
   skipsRemaining: number;
   twistActive: boolean;
   currentTwist: TwistEvent | null;
+  
+  // Actions
+  setSpiceMode: (spice: SpiceLevel) => void;
+  skipTurn: () => void;
+  forfeitTurn: () => void;
+  completeTurn: () => void;
+  applyTwist: (twist: TwistEvent) => void;
+  resetGame: () => void;
+  onTurnStart: (playerId: string) => void;
+  onTurnEnd: () => void;
+  selectPrompt: (prompt: TruthOrDarePrompt) => void;
 };
 
-function getRandomPrompt(type: 'truth' | 'dare', spice: SpiceLevel, excludeIds: string[]): TruthOrDarePrompt | null {
-  const prompts = type === 'truth' ? TRUTH_PROMPTS : DARE_PROMPTS;
-  const availablePrompts = prompts.filter(p => 
-    p.spice === spice && !excludeIds.includes(p.id)
-  );
-  
-  if (availablePrompts.length === 0) {
-    return null;
-  }
-  
-  return availablePrompts[Math.floor(Math.random() * availablePrompts.length)];
-}
-
-export const useTruthOrDareStore = create<TruthOrDareState>((set, get) => ({
+export const useTruthOrDareStore = create<TruthOrDareState>((set) => ({
   currentPrompt: null,
   usedPrompts: [],
   playerTurn: null,
@@ -39,7 +36,7 @@ export const useTruthOrDareStore = create<TruthOrDareState>((set, get) => ({
   
   skipTurn: () => set((state) => {
     const newSkips = Math.max(0, state.skipsRemaining - 1);
-    set({ skipsRemaining: newSkips, playerTurn: null });
+    return { skipsRemaining: newSkips, playerTurn: null };
   }),
   
   forfeitTurn: () => set({ playerTurn: null }),
@@ -49,7 +46,7 @@ export const useTruthOrDareStore = create<TruthOrDareState>((set, get) => ({
     if (state.currentPrompt) {
       newUsed.push(state.currentPrompt.id);
     }
-    set({ usedPrompts: newUsed, playerTurn: null });
+    return { usedPrompts: newUsed, playerTurn: null };
   }),
   
   applyTwist: (twist: TwistEvent) => set({ twistActive: true, currentTwist: twist }),
