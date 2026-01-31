@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { TruthOrDarePrompt, SpiceLevel, TwistEvent } from "@/lib/types";
-import { TRUTH_PROMPTS, DARE_PROMPTS } from "@/data/truth-or-dare-prompts";
+import { getRandomPrompt } from "@/data/truth-or-dare-prompts";
 
 export type TruthOrDareState = {
   currentPrompt: TruthOrDarePrompt | null;
@@ -21,6 +21,8 @@ export type TruthOrDareState = {
   onTurnStart: (playerId: string) => void;
   onTurnEnd: () => void;
   selectPrompt: (prompt: TruthOrDarePrompt) => void;
+  selectTruth: () => void;
+  selectDare: () => void;
 };
 
 export const useTruthOrDareStore = create<TruthOrDareState>((set) => ({
@@ -66,4 +68,14 @@ export const useTruthOrDareStore = create<TruthOrDareState>((set) => ({
   onTurnEnd: () => set({ playerTurn: null }),
   
   selectPrompt: (prompt: TruthOrDarePrompt) => set({ currentPrompt: prompt }),
+  
+  selectTruth: () => set((state) => {
+    const prompt = getRandomPrompt('truth', state.spiceMode, state.usedPrompts);
+    return { currentPrompt: prompt };
+  }),
+  
+  selectDare: () => set((state) => {
+    const prompt = getRandomPrompt('dare', state.spiceMode, state.usedPrompts);
+    return { currentPrompt: prompt };
+  }),
 }));

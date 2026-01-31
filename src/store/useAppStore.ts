@@ -17,6 +17,7 @@ import type {
   User,
 } from "@/lib/types";
 import { WebRTCManager } from "@/lib/webrtc";
+import { useTruthOrDareStore } from "./useTruthOrDareStore";
 
 function uid(prefix: string) {
   return `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`;
@@ -102,6 +103,10 @@ type AppState = {
   // Dice synchronization
   onDiceRoll: (roll: number[], userId: string, timestamp: number) => void;
   onDiceConfig: (config: any[], userId: string, timestamp: number) => void;
+  
+  // Truth or Dare synchronization
+  onTruthOrDareSelect: (prompt: any, userId: string, timestamp: number) => void;
+  onTruthOrDareAction: (action: string, userId: string, timestamp: number) => void;
   
   // WebRTC state
   webrtcManager: WebRTCManager | null;
@@ -480,6 +485,27 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ individualDice: config });
   },
   
+  onTruthOrDareSelect: (prompt, userId, timestamp) => {
+    useTruthOrDareStore.getState().selectPrompt(prompt);
+    useTruthOrDareStore.getState().onTurnStart(userId);
+  },
+  
+  onTruthOrDareAction: (action, userId, timestamp) => {
+    const store = useTruthOrDareStore.getState();
+    
+    switch (action) {
+      case 'skip':
+        store.skipTurn();
+        break;
+      case 'forfeit':
+        store.forfeitTurn();
+        break;
+      case 'complete':
+        store.completeTurn();
+        break;
+    }
+  },
+  
   setWebRTCManager: (manager) => {
     if (manager) {
       manager.onMessageReceived((msg) => {
@@ -497,6 +523,20 @@ export const useAppStore = create<AppState>((set, get) => ({
         const state = get();
         if (event.userId !== state.user?.id) {
           get().onDiceConfig(event.config, event.userId, event.timestamp);
+        }
+      });
+      
+      manager.onTruthOrDareSelectReceived((event) => {
+        const state = get();
+        if (event.userId !== state.user?.id) {
+          get().onTruthOrDareSelect(event.prompt, event.userId, event.timestamp);
+        }
+      });
+      
+      manager.onTruthOrDareActionReceived((event) => {
+        const state = get();
+        if (event.userId !== state.user?.id) {
+          get().onTruthOrDareAction(event.action, event.userId, event.timestamp);
         }
       });
     }

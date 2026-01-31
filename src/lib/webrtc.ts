@@ -1,5 +1,5 @@
 import { io, Socket } from 'socket.io-client';
-import { ChatMessage } from './types';
+import { ChatMessage, TruthOrDarePrompt } from './types';
 
 // STUN servers for NAT traversal
 const ICE_SERVERS = [
@@ -36,6 +36,18 @@ export type DiceConfigEvent = {
     timestamp: number;
 };
 
+export type TruthOrDareSelectEvent = {
+    prompt: TruthOrDarePrompt;
+    userId: string;
+    timestamp: number;
+};
+
+export type TruthOrDareActionEvent = {
+    action: 'skip' | 'forfeit' | 'complete';
+    userId: string;
+    timestamp: number;
+};
+
 export class WebRTCManager {
     private socket: Socket | null = null;
     private config: WebRTCConfig;
@@ -49,6 +61,8 @@ export class WebRTCManager {
     private onChatMessage: ((message: ChatMessage) => void) | null = null;
     private onDiceRoll: ((event: DiceRollEvent) => void) | null = null;
     private onDiceConfig: ((event: DiceConfigEvent) => void) | null = null;
+    private onTruthOrDareSelect: ((event: TruthOrDareSelectEvent) => void) | null = null;
+    private onTruthOrDareAction: ((event: TruthOrDareActionEvent) => void) | null = null;
 
     constructor(config: WebRTCConfig) {
         this.config = config;
@@ -218,6 +232,14 @@ export class WebRTCManager {
         this.onDiceConfig = callback;
     }
 
+    onTruthOrDareSelectReceived(callback: (event: TruthOrDareSelectEvent) => void) {
+        this.onTruthOrDareSelect = callback;
+    }
+
+    onTruthOrDareActionReceived(callback: (event: TruthOrDareActionEvent) => void) {
+        this.onTruthOrDareAction = callback;
+    }
+
     // Send a chat message or emoji reaction
     sendMessage(message: ChatMessage) {
         if (!this.socket) return;
@@ -244,6 +266,26 @@ export class WebRTCManager {
             roomId: this.config.roomId,
             config,
             userId: this.config.userId,
+        });
+    }
+
+    // Send truth or dare selection to all users in room
+    sendTruthOrDareSelect(prompt: TruthOrDarePrompt) {
+        if (!this.socket) return;
+        this.socket.emit('truth-or-dare-select', {
+            roomId: this.config.roomId,
+            prompt,
+            userId: this.config.userId,
+        });
+    }
+
+    // Send truth or dare action (skip, forfeit, complete) to all users in room
+    sendTruthOrDareAction(action: 'skip' | 'forfeit' | 'complete', userId?: string) {
+        if (!this.socket) return;
+        this.socket.emit('truth-or-dare-action', {
+            roomId: this.config.roomId,
+            action,
+            userId: userId || this.config.userId,
         });
     }
 
@@ -319,6 +361,18 @@ export class WebRTCManager {
         this.socket.on('dice-config', (event: DiceConfigEvent) => {
             console.log('[WebRTC] Received dice config from:', event.userId);
             this.onDiceConfig?.(event);
+        });
+
+        // Received truth or dare selection
+        this.socket.on('truth-or-dare-select', (event: TruthOrDareSelectEvent) => {
+            console.log('[WebRTC] Received truth or dare selection from:', event.userId);
+            this.onTruthOrDareSelect?.(event);
+        });
+
+        // Received truth or dare action
+        this.socket.on('truth-or-dare-action', (event: TruthOrDareActionEvent) => {
+            console.log('[WebRTC] Received truth or dare action from:', event.userId, event.action);
+            this.onTruthOrDareAction?.(event);
         });
     }
 

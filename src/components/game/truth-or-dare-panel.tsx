@@ -20,10 +20,62 @@ export function TruthOrDarePanel() {
     forfeitTurn,
     completeTurn,
     resetGame,
+    selectTruth,
+    selectDare,
   } = useTruthOrDareStore();
 
   const isCurrentUserTurn = playerTurn === user?.id;
   const hasPrompt = currentPrompt !== null;
+
+  const handleTruthSelect = () => {
+    selectTruth();
+    if (user?.id) {
+      const state = useTruthOrDareStore.getState();
+      if (state.currentPrompt) {
+        const webrtcManager = useAppStore.getState().webrtcManager;
+        if (webrtcManager) {
+          webrtcManager.sendTruthOrDareSelect(state.currentPrompt);
+        }
+      }
+    }
+  };
+
+  const handleDareSelect = () => {
+    selectDare();
+    if (user?.id) {
+      const state = useTruthOrDareStore.getState();
+      if (state.currentPrompt) {
+        const webrtcManager = useAppStore.getState().webrtcManager;
+        if (webrtcManager) {
+          webrtcManager.sendTruthOrDareSelect(state.currentPrompt);
+        }
+      }
+    }
+  };
+
+  const handleSkip = () => {
+    skipTurn();
+    const webrtcManager = useAppStore.getState().webrtcManager;
+    if (webrtcManager) {
+      webrtcManager.sendTruthOrDareAction('skip', user?.id);
+    }
+  };
+
+  const handleForfeit = () => {
+    forfeitTurn();
+    const webrtcManager = useAppStore.getState().webrtcManager;
+    if (webrtcManager) {
+      webrtcManager.sendTruthOrDareAction('forfeit', user?.id);
+    }
+  };
+
+  const handleComplete = () => {
+    completeTurn();
+    const webrtcManager = useAppStore.getState().webrtcManager;
+    if (webrtcManager) {
+      webrtcManager.sendTruthOrDareAction('complete', user?.id);
+    }
+  };
 
   return (
     <Card className="w-full max-w-2xl mx-auto">
@@ -68,9 +120,7 @@ export function TruthOrDarePanel() {
                 <Button
                   className="flex-1"
                   size="lg"
-                  onClick={() => {
-                    // TODO: Select truth prompt
-                  }}
+                  onClick={handleTruthSelect}
                 >
                   <Shield className="h-5 w-5 mr-2" />
                   Truth
@@ -79,9 +129,7 @@ export function TruthOrDarePanel() {
                   className="flex-1"
                   size="lg"
                   variant="secondary"
-                  onClick={() => {
-                    // TODO: Select dare prompt
-                  }}
+                  onClick={handleDareSelect}
                 >
                   <Swords className="h-5 w-5 mr-2" />
                   Dare
@@ -92,7 +140,7 @@ export function TruthOrDarePanel() {
                 <Button
                   className="flex-1"
                   variant="outline"
-                  onClick={skipTurn}
+                  onClick={handleSkip}
                   disabled={skipsRemaining === 0}
                 >
                   Skip ({skipsRemaining} left)
@@ -100,13 +148,13 @@ export function TruthOrDarePanel() {
                 <Button
                   className="flex-1"
                   variant="destructive"
-                  onClick={forfeitTurn}
+                  onClick={handleForfeit}
                 >
                   Forfeit
                 </Button>
                 <Button
                   className="flex-1"
-                  onClick={completeTurn}
+                  onClick={handleComplete}
                 >
                   Complete
                 </Button>

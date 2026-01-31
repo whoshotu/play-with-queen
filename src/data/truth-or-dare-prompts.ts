@@ -1,4 +1,4 @@
-import type { TruthOrDarePrompt } from '@/lib/types';
+import type { TruthOrDarePrompt, SpiceLevel } from '@/lib/types';
 
 const TRUTH_PROMPTS: TruthOrDarePrompt[] = [
   // MILD (15 prompts)
@@ -981,3 +981,39 @@ const DARE_PROMPTS: TruthOrDarePrompt[] = [
 ];
 
 export { TRUTH_PROMPTS, DARE_PROMPTS };
+
+export function getRandomPrompt(
+  type: 'truth' | 'dare',
+  spiceMode: SpiceLevel,
+  usedPrompts: string[]
+): TruthOrDarePrompt {
+  const prompts = type === 'truth' ? TRUTH_PROMPTS : DARE_PROMPTS;
+  const spiceLevels: SpiceLevel[] = ['mild', 'medium', 'spicy', 'extreme'];
+  const currentSpiceIndex = spiceLevels.indexOf(spiceMode);
+
+  for (let i = 0; i <= currentSpiceIndex; i++) {
+    const targetSpice = spiceLevels[i];
+    const filtered = prompts.filter(
+      (p) => p.spice === targetSpice && !usedPrompts.includes(p.id)
+    );
+    if (filtered.length > 0) {
+      const randomIndex = Math.floor(Math.random() * filtered.length);
+      return filtered[randomIndex];
+    }
+  }
+
+  const allUnused = prompts.filter((p) => !usedPrompts.includes(p.id));
+  if (allUnused.length > 0) {
+    return allUnused[Math.floor(Math.random() * allUnused.length)];
+  }
+
+  return prompts[Math.floor(Math.random() * prompts.length)];
+}
+
+export function canSelectTruth(spiceMode: SpiceLevel, usedPrompts: string[]): boolean {
+  return getRandomPrompt('truth', spiceMode, usedPrompts) !== null;
+}
+
+export function canSelectDare(spiceMode: SpiceLevel, usedPrompts: string[]): boolean {
+  return getRandomPrompt('dare', spiceMode, usedPrompts) !== null;
+}

@@ -109,6 +109,18 @@ io.on('connection', (socket) => {
         socket.to(roomId).emit('dice-config', { config, userId, timestamp: Date.now() });
     });
 
+    // Relay truth or dare selection
+    socket.on('truth-or-dare-select', ({ roomId, prompt, userId }) => {
+        console.log(`[${new Date().toISOString()}] Truth or Dare selection in room ${roomId} from ${userId}: ${prompt.type}`);
+        socket.to(roomId).emit('truth-or-dare-select', { prompt, userId, timestamp: Date.now() });
+    });
+
+    // Relay truth or dare action (skip, forfeit, complete)
+    socket.on('truth-or-dare-action', ({ roomId, action, userId }) => {
+        console.log(`[${new Date().toISOString()}] Truth or Dare action in room ${roomId} from ${userId}: ${action}`);
+        socket.to(roomId).emit('truth-or-dare-action', { action, userId, timestamp: Date.now() });
+    });
+
     // Handle disconnect
     socket.on('disconnect', () => {
         console.log(`[${new Date().toISOString()}] Client disconnected: ${socket.id}`);
