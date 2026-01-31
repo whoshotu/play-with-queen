@@ -1,3 +1,5 @@
+/// <reference types="vite/client" />
+
 import { create } from "zustand";
 
 import type {
@@ -10,9 +12,14 @@ import type {
   MenuItem,
   Participant,
   Role,
+  SpiceLevel,
+  TruthOrDarePrompt,
+  TwistEvent,
+  TwistType,
   User,
 } from "@/lib/types";
 import { WebRTCManager } from "@/lib/webrtc";
+import { TRUTH_PROMPTS, DARE_PROMPTS } from "@/data/truth-or-dare-prompts";
 
 function uid(prefix: string) {
   return `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`;
@@ -80,21 +87,79 @@ type AppState = {
   toggleHold: (index: number) => void;
   lastRoll: number[];
   rollDice: () => number[];
-
+  
+  // Individual dice
+  individualDice: IndividualDiceConfig[];
+  addIndividualDie: () => void;
+  removeIndividualDie: (id: string) => void;
+  updateIndividualDie: (id: string, patch: Partial<Omit<IndividualDiceConfig, "id">>) => void;
+  setIndividualDiceFaceLabel: (id: string, index: 0 | 1 | 2 | 3 | 4 | 5, value: string) => void;
+  
   call: CallState;
   setCall: (patch: Partial<CallState>) => void;
   addParticipant: (name: string, id?: string) => void;
   removeParticipant: (id: string) => void;
   updateParticipant: (id: string, patch: Partial<Omit<Participant, "id">>) => void;
-
+  
   // Chat actions
   addChatMessage: (content: string, type?: "user" | "emoji", incomingMessage?: ChatMessage) => void;
   addSystemMessage: (content: string) => void;
   clearChat: () => void;
-
+  
   selectedCameraId: string | null;
   setSelectedCameraId: (id: string | null) => void;
-
+  
+  // Truth or Dare game
+  truthOrDare: {
+    currentPrompt: TruthOrDarePrompt | null;
+    usedPrompts: string[];
+    playerTurn: string | null;
+    spiceMode: SpiceLevel;
+    skipsRemaining: number;
+    twistActive: boolean;
+    currentTwist: TwistEvent | null;
+  };
+  
+  onTruthOrDareReveal: (prompt, playerId) => void,
+  onTruthOrDareTwist: (twist) => void,
+  selectTruthOrDare: (prompt: TruthOrDarePrompt) => void,
+  
+  onTruthOrDareTurnStart: (playerId: string) => void,
+  onTruthOrDareTurnEnd: (playerId: string, completed: boolean) => void,
+  
+  setSpiceMode: (spice: SpiceLevel) => void,
+  skipTurn: () => void,
+  forfeitTurn: () => void,
+  completeTurn: () => void,
+  applyTwist: (twist: TwistEvent) => void,
+  resetTruthOrDareGame: () => void;
+  
+  // Truth or Dare game
+  truthOrDare: {
+    currentPrompt: TruthOrDarePrompt | null;
+    usedPrompts: string[];
+  playerTurn: string | null;
+  spiceMode: SpiceLevel;
+  skipsRemaining: number;
+  twistActive: boolean;
+  currentTwist: TwistEvent | null;
+};
+  selectTruthOrDare: (prompt: TruthOrDarePrompt) => void;
+  setSpiceMode: (spice: SpiceLevel) => void;
+  skipTurn: () => void;
+  forfeitTurn: () => void;
+  completeTurn: () => void;
+  applyTwist: (twist: TwistEvent) => void;
+  resetTruthOrDareGame: () => void;
+  onTruthOrDareTurnStart: (playerId: string) => void;
+  onTruthOrDareTurnEnd: (playerId: string, completed: boolean) => void;
+  onTruthOrDareReveal: (prompt: TruthOrDarePrompt, playerId: string) => void;
+  onTruthOrDareTwist: (twist: TwistEvent) => void;
+  
+  // Dice synchronization
+  onDiceRoll: (roll: number[], userId: string, timestamp: number) => void;
+  onDiceConfig: (config: any[], userId: string, timestamp: number) => void;
+  
   // WebRTC state
   webrtcManager: WebRTCManager | null;
   signalingServerUrl: string;
@@ -232,7 +297,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const diceCount = state.individualDice.length;
     const currentHeld = state.heldDice || [];
     const currentRoll = state.lastRoll || [];
-
+    
     // Use crypto.getRandomValues for better randomness
     const array = new Uint32Array(diceCount);
     crypto.getRandomValues(array);
@@ -247,6 +312,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
 
     set({ lastRoll: newValues });
+    
+    // Broadcast to other users
+    if (state.webrtcManager) {
+      state.webrtcManager.sendDiceRoll(newValues);
+    }
+    
     return newValues;
   },
 
@@ -255,37 +326,51 @@ export const useAppStore = create<AppState>((set, get) => ({
   addIndividualDie: () =>
     set((state) => {
       if (state.individualDice.length >= 6) return {};
-      return {
-        individualDice: [
-          ...state.individualDice,
-          {
-            id: uid("die"),
-            diceColor: "#111827",
-            faceTextColor: "#ffffff",
-            faceLabels: ["1", "2", "3", "4", "5", "6"],
-          },
-        ],
-      };
+      const newDice = [
+        ...state.individualDice,
+        {
+          id: uid("die"),
+          diceColor: "#111827",
+          faceTextColor: "#ffffff",
+          faceLabels: ["1", "2", "3", "4", "5", "6"] as ["1", "2", "3", "4", "5", "6"],
+        },
+      ];
+      if (state.webrtcManager) {
+        state.webrtcManager.sendDiceConfig(newDice);
+      }
+      return { individualDice: newDice };
     }),
   removeIndividualDie: (id) =>
-    set((state) => ({
-      individualDice: state.individualDice.filter((d) => d.id !== id),
-    })),
+    set((state) => {
+      const newDice = state.individualDice.filter((d) => d.id !== id);
+      if (state.webrtcManager) {
+        state.webrtcManager.sendDiceConfig(newDice);
+      }
+      return { individualDice: newDice };
+    }),
   updateIndividualDie: (id, patch) =>
-    set((state) => ({
-      individualDice: state.individualDice.map((d) =>
+    set((state) => {
+      const newDice = state.individualDice.map((d) =>
         d.id === id ? { ...d, ...patch } : d
-      ),
-    })),
+      );
+      if (state.webrtcManager) {
+        state.webrtcManager.sendDiceConfig(newDice);
+      }
+      return { individualDice: newDice };
+    }),
   setIndividualDiceFaceLabel: (id, index, value) =>
-    set((state) => ({
-      individualDice: state.individualDice.map((d) => {
+    set((state) => {
+      const newDice = state.individualDice.map((d) => {
         if (d.id !== id) return d;
         const next = [...d.faceLabels] as IndividualDiceConfig["faceLabels"];
         next[index] = value;
         return { ...d, faceLabels: next };
-      }),
-    })),
+      });
+      if (state.webrtcManager) {
+        state.webrtcManager.sendDiceConfig(newDice);
+      }
+      return { individualDice: newDice };
+    }),
 
   call: {
     joined: false,
@@ -428,7 +513,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   // WebRTC state
   webrtcManager: null,
   signalingServerUrl: (() => {
-    const envUrl = import.meta.env.VITE_SIGNALING_URL;
+    const envUrl = (import.meta.env as any).VITE_SIGNALING_URL;
     if (envUrl) return envUrl;
     
     const isHttps = window.location.protocol === 'https:';
@@ -438,16 +523,172 @@ export const useAppStore = create<AppState>((set, get) => ({
     // We'll use HTTP and handle the mixed content warning
     return "http://146.235.229.114:3001";
   })(),
-  roomId: "default-room",
+  roomId: ((import.meta.env as any).VITE_ROOM_ID as string) || "default-room",
   localStream: null,
   remoteStreams: new Map(),
   webrtcConnected: false,
   screenSharing: false,
-
+  
+  onDiceRoll: (roll, userId, timestamp) => {
+    set({ lastRoll: roll });
+  },
+  
+  onDiceConfig: (config, userId, timestamp) => {
+    set({ individualDice: config });
+  },
+  
+  // Truth or Dare game
+  truthOrDare: {
+    currentPrompt: null,
+    usedPrompts: [],
+    playerTurn: null,
+    spiceMode: 'mild',
+    skipsRemaining: 3,
+    twistActive: false,
+    currentTwist: null,
+  },
+  onTruthOrDareTurnStart: (playerId) => {
+    const state = get();
+    if (state.user?.id !== playerId) {
+      set((storeState) => ({
+        truthOrDare: { ...storeState.truthOrDare, playerTurn: playerId },
+      }));
+    }
+  },
+  onTruthOrDareTurnEnd: (playerId, completed) => {
+    const state = get();
+    if (state.user?.id !== playerId) {
+      set((storeState) => ({
+        truthOrDare: { ...storeState.truthOrDare, playerTurn: null },
+      }));
+    }
+  },
+  onTruthOrDareSelect: (selection) => {
+    const state = get();
+    if (state.user?.id !== selection.playerId) {
+      set((storeState) => ({
+        truthOrDare: { ...storeState.truthOrDare, currentPrompt: selection.prompt },
+      }));
+    }
+  },
+  
+  onTruthOrDareTurnStart: (playerId) => {
+    const state = get();
+    if (state.user?.id !== playerId) {
+      set((storeState) => ({
+        truthOrDare: { ...storeState.truthOrDare, playerTurn: playerId },
+      }));
+    }
+  },
+  onTruthOrDareTurnEnd: (playerId, completed) => {
+    const state = get();
+    if (state.user?.id !== playerId) {
+      set((storeState) => ({
+        truthOrDare: { ...storeState.truthOrDare, playerTurn: null },
+      }));
+    }
+    },
+  onTruthOrDareSelect: (selection) => {
+      const state = get();
+      set((storeState) => ({
+        truthOrDare: { ...storeState.truthOrDare, currentPrompt: selection.prompt },
+      }));
+      
+      if (state.webrtcManager) {
+        state.webrtcManager.sendMessage({
+          id: uid('msg'),
+          senderId: state.user?.id || '',
+          senderName: state.user?.name || '',
+          content: `selected ${selection.type} (${state.truthOrDare.spiceMode})`,
+          timestamp: new Date().toISOString(),
+          type: 'system',
+        } as any);
+      }
+    },
+    onTruthOrDareSelect: (selection) => {
+      const state = get();
+      set((storeState) => ({
+        truthOrDare: { ...storeState.truthOrDare, currentPrompt: selection.prompt },
+      }));
+      
+      if (state.webrtcManager) {
+        state.webrtcManager.sendMessage({
+          id: uid('msg'),
+          senderId: state.user?.id || '',
+          senderName: state.user?.name || '',
+          content: `selected ${selection.type} (${state.truthOrDare.spiceMode})`,
+          timestamp: new Date().toISOString(),
+          type: 'system',
+        } as any);
+      }
+    },
+  onTruthOrDareTwist: (twist) => {
+    const state = get();
+    set((storeState) => ({
+      truthOrDare: { ...storeState.truthOrDare, twistActive: true, currentTwist: twist },
+    }));
+  },
+  selectTruthOrDare: (prompt) => {
+    set((state) => ({
+      truthOrDare: { ...state.truthOrDare, currentPrompt: prompt },
+    }));
+  },
+  setSpiceMode: (spice) => set((state) => ({ truthOrDare: { ...state.truthOrDare, spiceMode: spice } })),
+  skipTurn: () => set((state) => {
+    const newSkips = Math.max(0, state.truthOrDare.skipsRemaining - 1);
+    set({ truthOrDare: { ...state.truthOrDare, skipsRemaining: newSkips, playerTurn: null } });
+  }),
+  forfeitTurn: () => set((state) => ({
+    truthOrDare: { ...state.truthOrDare, playerTurn: null },
+  })),
+  completeTurn: () => set((state) => {
+    const newUsed = [...state.truthOrDare.usedPrompts];
+    if (state.truthOrDare.currentPrompt) {
+      newUsed.push(state.truthOrDare.currentPrompt.id);
+    }
+    set({ truthOrDare: { ...state.truthOrDare, usedPrompts: newUsed, playerTurn: null } });
+  }),
+  applyTwist: (twist) => set((state) => ({
+    truthOrDare: { ...state.truthOrDare, twistActive: true, currentTwist: twist },
+  })),
+  resetTruthOrDareGame: () => set((state) => ({
+    truthOrDare: {
+      currentPrompt: null,
+      usedPrompts: [],
+      playerTurn: null,
+      spiceMode: 'mild',
+      skipsRemaining: 3,
+      twistActive: false,
+      currentTwist: null,
+    },
+  })),
+  
+  onDiceRoll: (roll, userId, timestamp) => {
+    set({ lastRoll: roll });
+  },
+  
+  onDiceConfig: (config, userId, timestamp) => {
+    set({ individualDice: config });
+  },
+  
   setWebRTCManager: (manager) => {
     if (manager) {
       manager.onMessageReceived((msg) => {
         get().addChatMessage(msg.content, msg.type as "user" | "emoji", msg);
+      });
+      
+      manager.onDiceRollReceived((event) => {
+        const state = get();
+        if (event.userId !== state.user?.id) {
+          get().onDiceRoll(event.roll, event.userId, event.timestamp);
+        }
+      });
+      
+      manager.onDiceConfigReceived((event) => {
+        const state = get();
+        if (event.userId !== state.user?.id) {
+          get().onDiceConfig(event.config, event.userId, event.timestamp);
+        }
       });
     }
     set({ webrtcManager: manager });

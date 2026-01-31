@@ -97,6 +97,18 @@ io.on('connection', (socket) => {
         socket.to(roomId).emit('chat-message', message);
     });
 
+    // Relay dice rolls
+    socket.on('dice-roll', ({ roomId, roll, userId }) => {
+        console.log(`[${new Date().toISOString()}] Dice roll in room ${roomId} from ${userId}:`, roll);
+        socket.to(roomId).emit('dice-roll', { roll, userId, timestamp: Date.now() });
+    });
+
+    // Relay dice configuration changes
+    socket.on('dice-config', ({ roomId, config, userId }) => {
+        console.log(`[${new Date().toISOString()}] Dice config in room ${roomId} from ${userId}`);
+        socket.to(roomId).emit('dice-config', { config, userId, timestamp: Date.now() });
+    });
+
     // Handle disconnect
     socket.on('disconnect', () => {
         console.log(`[${new Date().toISOString()}] Client disconnected: ${socket.id}`);

@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import basicSsl from "@vitejs/plugin-basic-ssl";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
@@ -6,9 +7,17 @@ import { resolve } from "path";
 import { defineConfig, type Plugin } from "vite";
 
 // https://vite.dev/config/
+const isDev = process.env.NODE_ENV !== 'production';
+
 export default defineConfig({
   base: "./",
-  plugins: [errorMonitorPlugin(), react(), tailwindcss(), createServeGeneratedCssPlugin(), basicSsl()],
+  plugins: [
+    isDev ? errorMonitorPlugin() : null,
+    react(),
+    tailwindcss(),
+    isDev ? createServeGeneratedCssPlugin() : null,
+    basicSsl(),
+  ].filter(Boolean),
   server: {
     port: 3000,
     allowedHosts: true,
@@ -19,7 +28,8 @@ export default defineConfig({
     dedupe: ["react", "react-dom", "react/jsx-runtime"],
   },
   build: {
-    minify: false, // false for readable stack traces
+    minify: 'terser',
+    sourcemap: true,
   },
 });
 

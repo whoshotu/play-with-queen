@@ -73,3 +73,34 @@ export type CallState = {
   participants: Participant[];
   chatMessages: ChatMessage[];
 };
+
+// Truth or Dare game types
+export type SpiceLevel = "mild" | "medium" | "spicy" | "extreme";
+
+export type TruthOrDarePrompt = {
+  id: string;
+  type: "truth" | "dare";
+  text: string;
+  spice: SpiceLevel;
+  category?: string;
+  isTwistable?: boolean;
+};
+
+export type TwistType = "double-or-nothing" | "public-vote" | "random-upgrade" | "mystery-challenge";
+
+export type TwistEvent = {
+  twistType: TwistType;
+  originalPromptId: string;
+  newPrompt?: TruthOrDarePrompt;
+  timestamp: number;
+};
+
+export type TruthOrDareState = {
+  currentPrompt: TruthOrDarePrompt | null;
+  usedPrompts: string[];
+  playerTurn: string | null;
+  spiceMode: SpiceLevel;
+  skipsRemaining: number;
+  twistActive: boolean;
+  currentTwist: TwistEvent | null;
+};

@@ -3,21 +3,37 @@ import { ChatMessage } from './types';
 
 // STUN servers for NAT traversal
 const ICE_SERVERS = [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' },
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+  { urls: 'stun:stun2.l.google.com:19302' },
 ];
 
 export type WebRTCConfig = {
-    signalingServerUrl: string;
-    roomId: string;
-    userId: string;
-    userName: string;
+  signalingServerUrl: string;
+  roomId: string;
+  userId: string;
+  userName: string;
 };
 
 export type PeerConnection = {
-    connection: RTCPeerConnection;
-    stream: MediaStream | null;
+  connection: RTCPeerConnection;
+  stream: MediaStream | null;
+};
+
+export function uid(prefix: string): string {
+  return `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`;
+}
+
+export type DiceRollEvent = {
+    roll: number[];
+    userId: string;
+    timestamp: number;
+};
+
+export type DiceConfigEvent = {
+    config: any[];
+    userId: string;
+    timestamp: number;
 };
 
 export class WebRTCManager {
@@ -31,6 +47,8 @@ export class WebRTCManager {
     private onUserLeft: ((userId: string) => void) | null = null;
     private onConnectionStateChange: ((state: string) => void) | null = null;
     private onChatMessage: ((message: ChatMessage) => void) | null = null;
+    private onDiceRoll: ((event: DiceRollEvent) => void) | null = null;
+    private onDiceConfig: ((event: DiceConfigEvent) => void) | null = null;
 
     constructor(config: WebRTCConfig) {
         this.config = config;
@@ -192,12 +210,40 @@ export class WebRTCManager {
         this.onChatMessage = callback;
     }
 
+    onDiceRollReceived(callback: (event: DiceRollEvent) => void) {
+        this.onDiceRoll = callback;
+    }
+
+    onDiceConfigReceived(callback: (event: DiceConfigEvent) => void) {
+        this.onDiceConfig = callback;
+    }
+
     // Send a chat message or emoji reaction
     sendMessage(message: ChatMessage) {
         if (!this.socket) return;
         this.socket.emit('chat-message', {
             roomId: this.config.roomId,
             message: message
+        });
+    }
+
+    // Send dice roll to all users in room
+    sendDiceRoll(roll: number[]) {
+        if (!this.socket) return;
+        this.socket.emit('dice-roll', {
+            roomId: this.config.roomId,
+            roll,
+            userId: this.config.userId,
+        });
+    }
+
+    // Send dice configuration to all users in room
+    sendDiceConfig(config: any[]) {
+        if (!this.socket) return;
+        this.socket.emit('dice-config', {
+            roomId: this.config.roomId,
+            config,
+            userId: this.config.userId,
         });
     }
 
@@ -261,6 +307,18 @@ export class WebRTCManager {
         this.socket.on('chat-message', (message: ChatMessage) => {
             console.log('[WebRTC] Received chat message from:', message.senderName);
             this.onChatMessage?.(message);
+        });
+
+        // Received dice roll
+        this.socket.on('dice-roll', (event: DiceRollEvent) => {
+            console.log('[WebRTC] Received dice roll from:', event.userId, event.roll);
+            this.onDiceRoll?.(event);
+        });
+
+        // Received dice config
+        this.socket.on('dice-config', (event: DiceConfigEvent) => {
+            console.log('[WebRTC] Received dice config from:', event.userId);
+            this.onDiceConfig?.(event);
         });
     }
 
