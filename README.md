@@ -10,11 +10,13 @@ A real-time interactive platform for content creators with video calling, dice g
 
 ## Features
 
-- 🎮 **Real-time Dice Game** - Customizable dice with synchronized rolls across users
+- 🎮 **Real-time Dice Game** - Customizable dice with synchronized rolls across users ✅
 - 📹 **Multi-camera Video Calling** - WebRTC-based P2P video calls with multiple participants
 - 💬 **Live Chat** - Real-time messaging and emoji reactions
 - 📋 **Content Boards** - Menu, media, and announcement management
-- 🔥 **Coming Soon:** Truth or Dare with spicy twist
+- 🎲 **Theme System** - Dark theme with purple and pink accents
+- 💖 **Custom Icons** - Hearts & Stars throughout the UI
+- 🔥 **In Progress:** Truth or Dare with spicy twist (70% complete)
 
 ---
 
@@ -217,14 +219,31 @@ Closes #42
 
 ## Current Status
 
-### Overall Progress: 20%
+### Overall Progress: 65%
 
-- ✅ Phase 1: Critical Fixes - **In Progress (60%)**
-- ⏳ Phase 2: Dice Synchronization - **Pending**
-- ⏳ Phase 3: Truth or Dare - **Pending**
-- ⏳ Phase 4: Optimization - **Pending**
-- ⏳ Phase 5: Polish & Testing - **Pending**
-- ⏳ Phase 6: Future Enhancements - **Pending**
+- ✅ Phase 1: Critical Fixes - Complete
+  - Dependencies cleaned (28 packages removed)
+  - Minification enabled (terser)
+  - Theme updated (purple/pink/dark-gray)
+  - Environment variables configured
+- ✅ Phase 2: Dice Synchronization - Complete
+  - Dice rolls synchronized across users
+  - Dice configuration synchronized
+  - WebRTC events implemented
+- 🟡 Phase 3: Truth or Dare - In Progress (70%)
+  - ✅ Game design document
+  - ✅ Type definitions
+  - ✅ Prompt database (120 prompts)
+  - ⏳ UI components pending
+  - ⏳ TypeScript errors pending (9 errors)
+- ✅ Phase 4: Optimization - Complete
+  - ✅ Code splitting (73% bundle reduction)
+  - ✅ Tree shaking (minimal impact - code already optimized)
+  - ✅ Image optimization (compression utilities added)
+  - ⏳ Performance profiling (deferred to Phase 5)
+  - ⏳ Component refactoring (deferred to Phase 5)
+- ⏳ Phase 5: Polish & Testing - Pending
+- ⏳ Phase 6: Future Enhancements - Pending
 
 See [ROADMAP.md](ROADMAP.md) for details.
 
@@ -232,18 +251,19 @@ See [ROADMAP.md](ROADMAP.md) for details.
 
 ## Known Issues
 
-### Critical
-- 🔴 Dice rolls not synchronized across users
-- 🔴 Dice configuration not synchronized
-- 🔴 Held dice state not synchronized
-
 ### High Priority
-- 🟠 Mixed content security warning
-- 🟠 Hardcoded server URLs
-- 🟠 Dual dice system conflict
-- 🟠 Excessive bundle size (2.28MB)
-- 🟠 Minification disabled in production
-- 🟠 30+ unused dependencies
+- 🟠 Truth or Dare store TypeScript errors (9 errors in `useAppStore.ts`)
+- 🟠 Phase 3 UI components not yet created
+
+### Medium Priority
+- 🟡 WebRTC connection timeout issues (15 seconds may be too short)
+- 🟡 No error recovery for WebRTC failures
+- 🟡 Media storage in memory only (no persistence)
+
+### Low Priority
+- 🔵 No persistent storage for content (Phase 6)
+- 🔵 No unit tests (Phase 6)
+- 🔵 Large component files (>300 lines) - to be addressed in Phase 4
 
 See [ISSUE_TRACKING.md](ISSUE_TRACKING.md) for complete list.
 

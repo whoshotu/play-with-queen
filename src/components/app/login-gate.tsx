@@ -172,13 +172,6 @@ export function LoginGate() {
             </Button>
           </div>
         </div>
-
-        <div className="text-xs text-muted-foreground border-t pt-3">
-          <p className="font-medium mb-1">Access Codes:</p>
-          <p>Creator: <code>pnpslut</code></p>
-          <p>Moderator: <code>shardtard</code></p>
-          <p>Admin: <code>spunfun</code></p>
-        </div>
       </CardContent>
     </Card>
   );

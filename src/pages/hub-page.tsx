@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 import { canEditBoards } from "@/lib/permissions";
+import { compressImage, formatFileSize, validateImageFile, validateVideoFile } from "@/lib/image-utils";
 import { useAppStore } from "@/store/useAppStore";
 
-import { Megaphone, PlaySquare, Utensils } from "lucide-react";
+import { Heart, Star } from "lucide-react";
 import * as React from "react";
 
 function inferMediaTypeFromUrl(url: string | undefined): "link" | "image" | "video" {
@@ -20,11 +21,24 @@ function inferMediaTypeFromUrl(url: string | undefined): "link" | "image" | "vid
 }
 
 async function fileToDataUrl(file: File): Promise<string> {
+  const validation = file.type.startsWith('image/')
+    ? validateImageFile(file)
+    : validateVideoFile(file);
+
+  if (!validation.valid) {
+    alert(validation.error);
+    throw new Error(validation.error);
+  }
+
+  const compressed = file.type.startsWith('image/')
+    ? await compressImage(file, 0.8)
+    : file;
+
   return await new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error("Failed to read file"));
     reader.onload = () => resolve(String(reader.result ?? ""));
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(compressed);
   });
 }
 
@@ -57,8 +71,13 @@ export default function HubPage() {
       <div className="grid gap-6 lg:grid-cols-3">
         <BoardCard
           title="Menu board"
-          description="What’s happening, what’s next, and how visitors can join in"
-          icon={<Utensils className="text-muted-foreground" />}
+          description="No menu items yet"
+          icon={
+            <div className="flex items-center gap-1">
+              <Heart className="fill-primary text-primary h-5 w-5" />
+              <Star className="fill-secondary text-secondary h-4 w-4" />
+            </div>
+          }
           action={
             canEdit ? (
               <Button
@@ -104,8 +123,13 @@ export default function HubPage() {
 
         <BoardCard
           title="Media board"
-          description="Upload from your gallery, or share a link"
-          icon={<PlaySquare className="text-muted-foreground" />}
+          description="No media uploaded yet"
+          icon={
+            <div className="flex items-center gap-1">
+              <Star className="fill-secondary text-secondary h-5 w-5" />
+              <Heart className="fill-primary text-primary h-4 w-4" />
+            </div>
+          }
           action={
             canEdit ? (
               <Button
@@ -165,11 +189,20 @@ export default function HubPage() {
                 accept="image/*,video/*"
                 onChange={(e) => {
                   const f = e.target.files?.[0] ?? null;
+                  if (f) {
+                    const validation = f.type.startsWith('image/')
+                      ? validateImageFile(f)
+                      : validateVideoFile(f);
+                    if (!validation.valid) {
+                      alert(validation.error);
+                      return;
+                    }
+                  }
                   setNewMediaFile(f);
                 }}
               />
               <div className="text-muted-foreground text-xs">
-                Upload uses your device gallery picker (prototype: stored in memory only).
+                Upload uses your device gallery picker. Images: max 5MB. Videos: max 50MB. Compressed automatically.
               </div>
             </div>
           ) : null}
@@ -211,8 +244,14 @@ export default function HubPage() {
 
         <BoardCard
           title="Announcement board"
-          description="Pinned updates for everyone"
-          icon={<Megaphone className="text-muted-foreground" />}
+          description="No announcements yet"
+          icon={
+            <div className="flex items-center gap-1">
+              <Heart className="fill-primary text-primary h-5 w-5" />
+              <Heart className="fill-secondary text-secondary h-3 w-3" />
+              <Star className="fill-primary text-primary h-4 w-4" />
+            </div>
+          }
           action={
             canEdit ? (
               <Button

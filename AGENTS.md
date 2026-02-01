@@ -25,18 +25,75 @@ This document provides guidelines for AI agents (including agentic coding system
 **Deployment:** AlterVista (static frontend) + Oracle Cloud Free Tier (signaling server)
 
 ### Current Status
-- **Phase 1:** 90% Complete - Critical fixes, dependency cleanup, build optimization, documentation
-- **Phase 2:** 90% Complete - Dice synchronization across users
-- **Phase 3:** 70% Complete - Truth or Dare game design, types, prompt database (120 prompts)
-- **Phase 4:** 0% - Optimization (code splitting, performance)
-- **Phase 5:** 0% - Polish & testing
-- **Overall Progress:** 50% Complete
+
+**Phase 1:** ✅ Complete
+- Dependencies cleaned (28 packages removed)
+- Minification enabled (terser)
+- Theme updated (dark gray with purple/pink accents)
+- Environment variables configured
+
+**Phase 2:** ✅ Complete
+- Dice rolls synchronized across users
+- Dice configuration synchronized
+- WebRTC events implemented
+
+**Phase 3:** 🟡 In Progress (70%)
+- Game design document complete
+- Type definitions complete
+- Prompt database complete (120 prompts)
+- UI components pending
+- TypeScript errors pending (9 errors in store)
+
+**Phase 4:** ✅ Complete
+- Code splitting implemented ✅
+- 73% bundle reduction (297KB → 80KB gzipped initial load)
+- Lazy loading for all routes ✅
+- Manual chunking (7 vendor chunks) ✅
+- Tree shaking (code already optimized) ✅
+- Image optimization (compression utilities added) ✅
+- File size validation (5MB images, 50MB videos) ✅
+- Performance profiling deferred to Phase 5
+- Component refactoring deferred to Phase 5
+
+**Phase 5:** ⏳ Pending
+**Phase 6:** ⏳ Pending
+
+**Overall Progress:** 65% Complete
 
 ### Known Critical Issues (Need Attention)
-- **Dice rolls NOT synchronized** across users - each user sees independent results
-- **Dice customizations** (colors, labels) are local only
-- **Held dice state** is not visible to other users
-- **9 TypeScript errors** in `src/store/useAppStore.ts` (see ISSUE_TRACKING.md)
+- ✅ RESOLVED: Dice rolls are now synchronized across users
+- ✅ RESOLVED: Dice customizations are now synchronized
+- ✅ RESOLVED: Bundle size reduced to 297KB (meets target)
+- ✅ RESOLVED: Initial load reduced to 80KB with code splitting (73% improvement)
+- 🔴 OPEN: 9 TypeScript errors in `src/store/useAppStore.ts` (Phase 3 incomplete)
+- 🟠 OPEN: Phase 3 UI components not yet created
+- 🟡 NEW: Large components identified for refactoring (sidebar: 726 lines, call-panel: 391 lines)
+
+### Recent Changes (2026-01-31)
+
+**Theme Update:**
+- Changed from green primary to light purple (#A78BFA)
+- Changed from current secondary to dark pink (#BE185D)
+- Changed background from black to dark gray (#121212)
+- All chart colors updated to purple/pink theme
+- Card background slightly lighter than background
+
+**Icon Changes:**
+- Replaced Utensils icon with Hearts & Stars on Menu board
+- Replaced PlaySquare icon with Stars & Hearts on Media board
+- Replaced Megaphone icon with Hearts & Stars on Announcement board
+- All cards now use generic placeholder text ("No [items/media/announcements] yet")
+
+**Security Improvements:**
+- Access codes no longer displayed in login view
+- Codes (pnpslut, shardtard, spunfun) hidden from users
+- Code validation logic still functional server-side
+
+**Build Improvements:**
+- Bundle: 1,044KB (uncompressed) → 297KB (gzipped)
+- Minification enabled with terser
+- All Phase 1 tasks complete
+- All Phase 2 tasks complete
 
 ---
 
